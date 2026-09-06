@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Neptun Alerts</string>
+    <string name="status_clear">All Clear</string>
+    <string name="status_alarm">AIR RAID ALERT</string>
+    <string name="status_unknown">Waiting for data…</string>
+    <string name="service_notification_channel">Monitoring Service</string>
+    <string name="alert_notification_channel">Alarm Signals</string>
+    <string name="monitoring_active">Monitoring active</string>
+    <string name="region_not_selected">No region selected</string>
+    <string name="choose_region">Select Region</string>
+    <string name="all_oblast">Entire Oblast</string>
+    <string name="search_hint">Search oblast or district…</string>
+    <string name="settings">Settings</string>
+    <string name="sound_on_alarm">Sound on alert start</string>
+    <string name="vibrate_on_alarm">Vibration on alert start</string>
+    <string name="sound_on_clear">Sound on all clear</string>
+    <string name="vibrate_on_clear">Vibration on all clear</string>
+    <string name="service_enabled">Background monitoring</string>
+    <string name="watch_sync_status">Watch Synchronization</string>
+    <string name="watch_connected">Watch connected</string>
+    <string name="watch_disconnected">No watch connected</string>
+    <string name="refresh">Refresh now</string>
+    <string name="last_updated">Updated: %s</string>
+    <string name="alarm_started">Started: %s</string>
+    <string name="duration">Duration: %s</string>
+</resources>

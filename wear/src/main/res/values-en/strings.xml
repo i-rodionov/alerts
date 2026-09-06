@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Alerts</string>
+    <string name="complication_label">Air Raid Alert Status</string>
+    <string name="complication_preview_text">ALERT</string>
+    <string name="complication_preview_title">Kyiv</string>
+    <string name="status_clear">Clear</string>
+    <string name="status_alarm">ALERT</string>
+    <string name="status_offline">No connection</string>
+    <string name="sync_button">Sync with phone</string>
+    <string name="last_synced">Synced: %s</string>
+    <string name="alert_duration">Duration: %s</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Тривоги</string>
+    <string name="complication_label">Статус повітряної тривоги</string>
+    <string name="complication_preview_text">ТРВ</string>
+    <string name="complication_preview_title">Київ</string>
+    <string name="status_clear">Чисто</string>
+    <string name="status_alarm">ТРИВОГА</string>
+    <string name="status_offline">Немає зв\'язку</string>
+    <string name="sync_button">Синхронізувати</string>
+    <string name="last_synced">Синхр.: %s</string>
+    <string name="alert_duration">Триває: %s</string>
+</resources>

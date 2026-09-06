@@ -1,0 +1,21 @@
+package ua.alerts.wear
+
+import android.app.Application
+import ua.alerts.wear.data.WatchAlertRepository
+
+class WearAlertApp : Application() {
+
+    lateinit var alertRepository: WatchAlertRepository
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        alertRepository = WatchAlertRepository(this)
+    }
+
+    companion object {
+        lateinit var instance: WearAlertApp
+            private set
+    }
+}
