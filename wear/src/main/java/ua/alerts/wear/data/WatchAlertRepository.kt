@@ -1,6 +1,7 @@
 package ua.alerts.wear.data
 
 import android.content.Context
+import androidx.core.content.edit
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +36,7 @@ class WatchAlertRepository(private val context: Context) {
     fun updateStatus(newStatus: AlertStatus) {
         _currentStatus.value = newStatus
         val rawJson = json.encodeToString(AlertStatus.serializer(), newStatus)
-        prefs.edit().putString("cached_status_json", rawJson).apply()
+        prefs.edit { putString("cached_status_json", rawJson) }
     }
 
     fun requestSyncFromPhone() {

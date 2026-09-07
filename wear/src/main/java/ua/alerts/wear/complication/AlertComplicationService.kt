@@ -49,9 +49,7 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             null
         }
 
-        val tapIntent = Intent(this, WearMainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
+        val tapIntent = Intent(this, WearMainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this,
             request.complicationInstanceId,
