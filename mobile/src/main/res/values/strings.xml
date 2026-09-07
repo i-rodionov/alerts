@@ -24,4 +24,11 @@
     <string name="last_updated">Оновлено: %s</string>
     <string name="alarm_started">Початок: %s</string>
     <string name="duration">Тривалість: %s</string>
+    <string name="monitoring_title">Моніторинг</string>
+    <string name="status_monitoring_disabled">Моніторинг вимкнено</string>
+    <string name="status_connecting">Підключення…</string>
+    <string name="status_connected">Підключено</string>
+    <string name="status_reconnecting">Перепідключення…</string>
+    <string name="status_connection_error">Помилка з\'єднання</string>
+    <string name="status_service_stopped">Службу зупинено</string>
 </resources>

@@ -12,6 +12,7 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import ua.alerts.mobile.AlertApp
 import ua.alerts.mobile.R
+import ua.alerts.mobile.data.ConnectionStatus
 import ua.alerts.mobile.ui.MainActivity
 import ua.alerts.shared.model.AlertStatus
 
@@ -25,7 +26,10 @@ class NotificationHelper(private val context: Context) {
         const val NOTIFICATION_ID_ALARM = 1002
     }
 
-    fun buildServiceNotification(status: AlertStatus): Notification {
+    fun buildServiceNotification(
+        status: AlertStatus,
+        connectionStatus: ConnectionStatus = ConnectionStatus.CONNECTED
+    ): Notification {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -37,12 +41,21 @@ class NotificationHelper(private val context: Context) {
         )
 
         val title = if (status.isAlarm) {
-            context.getString(R.string.status_alarm) + " ??"
+            context.getString(R.string.status_alarm) + " ⚠️"
         } else {
-            context.getString(R.string.status_clear) + " ??"
+            context.getString(R.string.status_clear) + " 🟢"
         }
 
-        val text = "${status.displayName} • ${context.getString(R.string.monitoring_active)}"
+        val connText = when (connectionStatus) {
+            ConnectionStatus.CONNECTED -> context.getString(R.string.status_connected)
+            ConnectionStatus.CONNECTING -> context.getString(R.string.status_connecting)
+            ConnectionStatus.RECONNECTING -> context.getString(R.string.status_reconnecting)
+            ConnectionStatus.ERROR -> context.getString(R.string.status_connection_error)
+            ConnectionStatus.STOPPED -> context.getString(R.string.status_monitoring_disabled)
+        }
+
+        val regionText = status.displayName.ifEmpty { context.getString(R.string.app_name) }
+        val text = "$regionText • ${context.getString(R.string.monitoring_active)} [$connText]"
 
         return NotificationCompat.Builder(context, AlertApp.CHANNEL_SERVICE_ID)
             .setContentTitle(title)

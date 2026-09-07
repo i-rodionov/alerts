@@ -26,18 +26,32 @@ import ua.alerts.shared.model.NeptunWsEnvelope
 import java.util.concurrent.TimeUnit
 
 enum class ConnectionStatus {
-    DISCONNECTED,
+    STOPPED,
     CONNECTING,
     CONNECTED,
-    RECONNECTING
+    RECONNECTING,
+    ERROR
 }
 
 class NeptunClient(
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .pingInterval(20, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .build()
 ) {
     companion object {
         const val WS_URL = "wss://neptun.in.ua/api/v1/stream"
         const val REST_ALERTS_URL = "https://neptun.in.ua/api/v1/alerts"
+        const val INITIAL_RECONNECT_DELAY_MS = 2000L
+        const val MAX_RECONNECT_DELAY_MS = 30000L
+
+        fun calculateBackoffDelayMs(attempt: Int): Long {
+            val shift = attempt.coerceIn(0, 4)
+            val delay = INITIAL_RECONNECT_DELAY_MS * (1L shl shift)
+            return delay.coerceAtMost(MAX_RECONNECT_DELAY_MS)
+        }
     }
 
     private val json = Json {
@@ -45,25 +59,37 @@ class NeptunClient(
         isLenient = true
     }
 
-    private val httpClient = OkHttpClient.Builder()
-        .pingInterval(20, TimeUnit.SECONDS)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
-
     private var webSocket: WebSocket? = null
     private var reconnectJob: Job? = null
+    private var reconnectAttempts = 0
+
+    @Volatile
     private var isStarted = false
 
     private val _alertsFlow = MutableSharedFlow<NeptunAlertsResponse>(replay = 1)
     val alertsFlow: SharedFlow<NeptunAlertsResponse> = _alertsFlow.asSharedFlow()
 
-    private val _connectionStatus = MutableStateFlow(ConnectionStatus.DISCONNECTED)
+    private val _connectionStatus = MutableStateFlow(ConnectionStatus.STOPPED)
     val connectionStatus: StateFlow<ConnectionStatus> = _connectionStatus.asStateFlow()
 
+    private val _lastError = MutableStateFlow<String?>(null)
+    val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
+    val isRunning: Boolean
+        get() = isStarted
+
     fun start() {
-        if (isStarted) return
+        if (isStarted) {
+            if (_connectionStatus.value == ConnectionStatus.ERROR) {
+                reconnectAttempts = 0
+                reconnectJob?.cancel()
+                reconnectJob = null
+                connect()
+            }
+            return
+        }
         isStarted = true
+        reconnectAttempts = 0
         connect()
     }
 
@@ -71,14 +97,21 @@ class NeptunClient(
         isStarted = false
         reconnectJob?.cancel()
         reconnectJob = null
-        webSocket?.close(1000, "Client stopped")
+        reconnectAttempts = 0
+        val ws = webSocket
         webSocket = null
-        _connectionStatus.value = ConnectionStatus.DISCONNECTED
+        ws?.close(1000, "Client stopped")
+        _connectionStatus.value = ConnectionStatus.STOPPED
+        _lastError.value = null
     }
 
     private fun connect() {
         if (!isStarted) return
         _connectionStatus.value = ConnectionStatus.CONNECTING
+
+        val oldWs = webSocket
+        webSocket = null
+        oldWs?.cancel()
 
         val request = Request.Builder()
             .url(WS_URL)
@@ -86,14 +119,22 @@ class NeptunClient(
 
         webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                if (!isStarted) {
+                    webSocket.close(1000, "Client stopped")
+                    return
+                }
+                reconnectAttempts = 0
+                reconnectJob?.cancel()
+                reconnectJob = null
+                _lastError.value = null
                 _connectionStatus.value = ConnectionStatus.CONNECTED
-                // Fetch snapshot immediately on connect to ensure up-to-date state
                 scope.launch {
                     fetchAlertsSnapshot()
                 }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                if (!isStarted) return
                 try {
                     val envelope = json.decodeFromString<NeptunWsEnvelope>(text)
                     when (envelope.type) {
@@ -106,7 +147,6 @@ class NeptunClient(
                             }
                         }
                         "snapshot" -> {
-                            // snapshot frame contains threats, but alerts may also be attached
                             scope.launch {
                                 fetchAlertsSnapshot()
                             }
@@ -121,35 +161,44 @@ class NeptunClient(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                handleDisconnect()
+                if (!isStarted) return
+                if (this@NeptunClient.webSocket === webSocket) {
+                    this@NeptunClient.webSocket = null
+                }
+                _lastError.value = t.localizedMessage ?: "Connection failure"
+                _connectionStatus.value = ConnectionStatus.ERROR
+                scheduleReconnect()
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                handleDisconnect()
+                if (!isStarted) return
+                if (this@NeptunClient.webSocket === webSocket) {
+                    this@NeptunClient.webSocket = null
+                }
+                if (code != 1000) {
+                    _connectionStatus.value = ConnectionStatus.RECONNECTING
+                    scheduleReconnect()
+                }
             }
         })
     }
 
-    private fun handleDisconnect() {
-        if (!isStarted) return
-        _connectionStatus.value = ConnectionStatus.RECONNECTING
-        scheduleReconnect()
-    }
-
     private fun scheduleReconnect() {
+        if (!isStarted) return
         if (reconnectJob?.isActive == true) return
+
+        val delayMs = calculateBackoffDelayMs(reconnectAttempts++)
+        _connectionStatus.value = ConnectionStatus.RECONNECTING
+
         reconnectJob = scope.launch {
-            var delayMs = 3000L
-            while (isActive && isStarted && _connectionStatus.value != ConnectionStatus.CONNECTED) {
-                // Try REST snapshot while WebSocket is disconnected
-                fetchAlertsSnapshot()
+            // Attempt REST snapshot fallback while disconnected
+            fetchAlertsSnapshot()
 
-                delay(delayMs)
-                if (!isStarted) break
+            delay(delayMs)
+            if (!isStarted || !isActive) return@launch
 
-                connect()
-                delayMs = (delayMs * 1.5).toLong().coerceAtMost(30000L)
-            }
+            reconnectJob = null
+            connect()
         }
     }
 

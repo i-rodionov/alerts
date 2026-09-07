@@ -173,6 +173,62 @@ fun HomeScreen(
                 }
             }
 
+            // Dedicated Monitoring Control Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.monitoring_title),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val statusText = if (!serviceEnabled) {
+                            stringResource(R.string.status_monitoring_disabled)
+                        } else {
+                            when (uiState.connectionStatus) {
+                                ConnectionStatus.CONNECTED -> stringResource(R.string.status_connected)
+                                ConnectionStatus.CONNECTING -> stringResource(R.string.status_connecting)
+                                ConnectionStatus.RECONNECTING -> stringResource(R.string.status_reconnecting)
+                                ConnectionStatus.ERROR -> stringResource(R.string.status_connection_error)
+                                ConnectionStatus.STOPPED -> stringResource(R.string.status_monitoring_disabled)
+                            }
+                        }
+                        val statusColor = if (!serviceEnabled) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            when (uiState.connectionStatus) {
+                                ConnectionStatus.CONNECTED -> SafeGreen
+                                ConnectionStatus.CONNECTING, ConnectionStatus.RECONNECTING -> Color(0xFFFFA000)
+                                ConnectionStatus.ERROR -> DangerRed
+                                ConnectionStatus.STOPPED -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        }
+                        Text(
+                            text = statusText,
+                            color = statusColor,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    Switch(
+                        checked = serviceEnabled,
+                        onCheckedChange = onToggleService
+                    )
+                }
+            }
+
             // Region Selection Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -339,7 +395,8 @@ fun ConnectionBadge(status: ConnectionStatus) {
         ConnectionStatus.CONNECTED -> "Live" to SafeGreen
         ConnectionStatus.CONNECTING -> "..." to Color(0xFFFFA000)
         ConnectionStatus.RECONNECTING -> "Sync..." to Color(0xFFFFA000)
-        ConnectionStatus.DISCONNECTED -> "Offline" to Color.Gray
+        ConnectionStatus.ERROR -> "Error" to DangerRed
+        ConnectionStatus.STOPPED -> "Off" to Color.Gray
     }
 
     Box(

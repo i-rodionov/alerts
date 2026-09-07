@@ -76,4 +76,5 @@ dependencies {
     implementation(libs.play.services.wearable)
 
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }

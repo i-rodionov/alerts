@@ -2,6 +2,7 @@
 .gradle
 /local.properties
 /.idea
+/.serena
 .DS_Store
 /build
 /captures
@@ -9,3 +10,4 @@
 .cxx
 local.properties
 **/build/
+GEMINI.md

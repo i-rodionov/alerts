@@ -1,22 +1,23 @@
 package ua.alerts.mobile.service
 
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Binder
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
+import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ua.alerts.mobile.data.AlertRepository
 import ua.alerts.mobile.data.ConnectionStatus
 import ua.alerts.mobile.data.NeptunClient
 import ua.alerts.mobile.data.SettingsRepository
@@ -26,7 +27,7 @@ import ua.alerts.shared.data.DefaultRegions
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.NeptunAlertsResponse
 
-class AlertMonitoringService : Service() {
+class AlertForegroundService : Service() {
 
     companion object {
         const val ACTION_START = "ua.alerts.mobile.action.START"
@@ -34,32 +35,27 @@ class AlertMonitoringService : Service() {
         const val ACTION_REFRESH = "ua.alerts.mobile.action.REFRESH"
 
         fun startService(context: Context) {
-            val intent = Intent(context, AlertMonitoringService::class.java).apply {
+            val intent = Intent(context, AlertForegroundService::class.java).apply {
                 action = ACTION_START
             }
             ContextCompat.startForegroundService(context, intent)
         }
 
         fun stopService(context: Context) {
-            val intent = Intent(context, AlertMonitoringService::class.java).apply {
+            val intent = Intent(context, AlertForegroundService::class.java).apply {
                 action = ACTION_STOP
             }
             context.startService(intent)
         }
 
         fun refresh(context: Context) {
-            val intent = Intent(context, AlertMonitoringService::class.java).apply {
+            val intent = Intent(context, AlertForegroundService::class.java).apply {
                 action = ACTION_REFRESH
             }
             context.startService(intent)
         }
     }
 
-    inner class LocalBinder : Binder() {
-        val service: AlertMonitoringService get() = this@AlertMonitoringService
-    }
-
-    private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private lateinit var settingsRepo: SettingsRepository
@@ -67,17 +63,11 @@ class AlertMonitoringService : Service() {
     private lateinit var neptunClient: NeptunClient
     private lateinit var wearSyncManager: WearSyncManager
 
-    private val _currentStatus = MutableStateFlow(AlertStatus())
-    val currentStatus: StateFlow<AlertStatus> = _currentStatus.asStateFlow()
-
-    val connectionStatus: StateFlow<ConnectionStatus>
-        get() = neptunClient.connectionStatus
-
-    val connectedWatchCount: StateFlow<Int>
-        get() = wearSyncManager.connectedWatchCount
-
     private var monitoringJob: Job? = null
+    private var connectionStatusJob: Job? = null
+    private var watchCountJob: Job? = null
     private var hasInitialized = false
+    private var lastAlarmState: Boolean? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -85,23 +75,43 @@ class AlertMonitoringService : Service() {
         notificationHelper = NotificationHelper(applicationContext)
         neptunClient = NeptunClient()
         wearSyncManager = WearSyncManager(applicationContext, serviceScope) {
-            _currentStatus.value
+            AlertRepository.alertStatus.value
         }
 
         wearSyncManager.start()
 
-        // Start foreground notification immediately
-        startForeground(
-            NotificationHelper.NOTIFICATION_ID_SERVICE,
-            notificationHelper.buildServiceNotification(_currentStatus.value)
+        // Promptly start foreground notification to satisfy Android 14+ / SDK 35 requirements
+        val initialNotification = notificationHelper.buildServiceNotification(
+            status = AlertRepository.alertStatus.value,
+            connectionStatus = ConnectionStatus.CONNECTING
         )
 
+        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        } else {
+            0
+        }
+        ServiceCompat.startForeground(
+            this,
+            NotificationHelper.NOTIFICATION_ID_SERVICE,
+            initialNotification,
+            fgsType
+        )
+
+        AlertRepository.setServiceRunning(true)
         startMonitoring()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
+                stopMonitoring()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -112,29 +122,60 @@ class AlertMonitoringService : Service() {
                 }
             }
             else -> {
+                // ACTION_START or system restart with null intent
                 startMonitoring()
             }
         }
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder = binder
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // Keep service running even when task is removed from Recents
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        monitoringJob?.cancel()
-        neptunClient.stop()
-        wearSyncManager.stop()
+        stopMonitoring()
         serviceScope.cancel()
+        AlertRepository.setServiceRunning(false)
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancel(NotificationHelper.NOTIFICATION_ID_SERVICE)
         super.onDestroy()
     }
 
     private fun startMonitoring() {
-        if (monitoringJob?.isActive == true) return
+        if (monitoringJob?.isActive == true && neptunClient.isRunning) return
 
         neptunClient.start()
 
+        // Observe connection status changes
+        if (connectionStatusJob == null || !connectionStatusJob!!.isActive) {
+            connectionStatusJob = serviceScope.launch {
+                neptunClient.connectionStatus.collect { status ->
+                    AlertRepository.setConnectionStatus(status, neptunClient.lastError.value)
+                    val notification = notificationHelper.buildServiceNotification(
+                        status = AlertRepository.alertStatus.value,
+                        connectionStatus = status
+                    )
+                    val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    manager.notify(NotificationHelper.NOTIFICATION_ID_SERVICE, notification)
+                }
+            }
+        }
+
+        // Observe connected watch count
+        if (watchCountJob == null || !watchCountJob!!.isActive) {
+            watchCountJob = serviceScope.launch {
+                wearSyncManager.connectedWatchCount.collect { count ->
+                    AlertRepository.setConnectedWatchCount(count)
+                }
+            }
+        }
+
+        // Observe incoming alerts and compute status for the selected region
         monitoringJob = serviceScope.launch {
-            // Combine active alerts from Neptun and user selected region
             combine(
                 neptunClient.alertsFlow,
                 settingsRepo.regionId,
@@ -144,19 +185,23 @@ class AlertMonitoringService : Service() {
             ) { alerts, regId, regName, distId, distName ->
                 computeAlertStatus(alerts, regId, regName, distId, distName)
             }.collect { newStatus ->
-                val prevStatus = _currentStatus.value
-                _currentStatus.value = newStatus
+                val prevAlarm = lastAlarmState
+                AlertRepository.setAlertStatus(newStatus)
+                lastAlarmState = newStatus.isAlarm
 
                 // Update ongoing service notification
-                val notification = notificationHelper.buildServiceNotification(newStatus)
-                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                val notification = notificationHelper.buildServiceNotification(
+                    status = newStatus,
+                    connectionStatus = neptunClient.connectionStatus.value
+                )
+                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID_SERVICE, notification)
 
                 // Sync status with Galaxy Watch
                 wearSyncManager.syncAlertStatus(newStatus)
 
-                // If state transitioned and not initial run, trigger sound/vibration
-                if (hasInitialized && prevStatus.isAlarm != newStatus.isAlarm) {
+                // Trigger sound/vibration only on state transition and after initial state load to prevent duplicate alarms
+                if (hasInitialized && prevAlarm != null && prevAlarm != newStatus.isAlarm) {
                     val soundAlarm = settingsRepo.soundOnAlarm.first()
                     val vibrateAlarm = settingsRepo.vibrateOnAlarm.first()
                     val soundClear = settingsRepo.soundOnClear.first()
@@ -171,6 +216,17 @@ class AlertMonitoringService : Service() {
                 hasInitialized = true
             }
         }
+    }
+
+    private fun stopMonitoring() {
+        monitoringJob?.cancel()
+        monitoringJob = null
+        connectionStatusJob?.cancel()
+        connectionStatusJob = null
+        watchCountJob?.cancel()
+        watchCountJob = null
+        neptunClient.stop()
+        wearSyncManager.stop()
     }
 
     private fun computeAlertStatus(

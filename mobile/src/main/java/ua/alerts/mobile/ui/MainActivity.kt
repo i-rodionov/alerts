@@ -15,7 +15,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import ua.alerts.mobile.service.AlertMonitoringService
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import ua.alerts.mobile.service.AlertForegroundService
 import ua.alerts.mobile.ui.screens.HomeScreen
 import ua.alerts.mobile.ui.screens.RegionSelectScreen
 import ua.alerts.mobile.ui.theme.AlertsTheme
@@ -34,7 +37,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         checkNotificationPermission()
-        AlertMonitoringService.startService(this)
+
+        lifecycleScope.launch {
+            val enabled = viewModel.settingsRepo.serviceEnabled.first()
+            if (enabled) {
+                AlertForegroundService.startService(this@MainActivity)
+            }
+        }
 
         setContent {
             AlertsTheme {
