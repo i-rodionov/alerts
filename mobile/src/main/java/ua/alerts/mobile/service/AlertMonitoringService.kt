@@ -180,50 +180,6 @@ class AlertMonitoringService : Service() {
         districtId: String?,
         districtName: String?
     ): AlertStatus {
-        var isAlarm = false
-        var sinceTime: String? = null
-
-        if (districtId != null) {
-            // Check specific district alert first
-            val matchingRaion = alerts.raions.firstOrNull { it.key == districtId }
-            if (matchingRaion != null) {
-                isAlarm = true
-                sinceTime = matchingRaion.since
-            } else {
-                // Check whole oblast alert
-                val matchingOblast = alerts.oblasts.firstOrNull { it.key == regionId }
-                if (matchingOblast != null) {
-                    isAlarm = true
-                    sinceTime = matchingOblast.since
-                }
-            }
-        } else {
-            // Entire oblast selected
-            val matchingOblast = alerts.oblasts.firstOrNull { it.key == regionId }
-            if (matchingOblast != null) {
-                isAlarm = true
-                sinceTime = matchingOblast.since
-            } else {
-                // Check if any raion in this oblast has an alert
-                val matchingRaion = alerts.raions.firstOrNull {
-                    it.key.startsWith("$regionId:") ||
-                    it.oblast.contains(regionName, ignoreCase = true)
-                }
-                if (matchingRaion != null) {
-                    isAlarm = true
-                    sinceTime = matchingRaion.since
-                }
-            }
-        }
-
-        return AlertStatus(
-            isAlarm = isAlarm,
-            regionKey = regionId,
-            regionName = regionName,
-            districtKey = districtId,
-            districtName = districtName,
-            since = sinceTime,
-            updatedAt = System.currentTimeMillis()
-        )
+        return DefaultRegions.computeAlertStatus(alerts, regionId, regionName, districtId, districtName)
     }
 }

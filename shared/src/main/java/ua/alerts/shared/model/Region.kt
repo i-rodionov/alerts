@@ -7,6 +7,7 @@ data class Region(
     val id: String,
     val nameUk: String,
     val nameEn: String,
+    val neptunKey: String? = null,
     val raions: List<District> = emptyList()
 )
 
@@ -15,5 +16,6 @@ data class District(
     val id: String,
     val nameUk: String,
     val nameEn: String,
-    val oblastId: String
+    val oblastId: String,
+    val neptunKey: String? = null
 )
