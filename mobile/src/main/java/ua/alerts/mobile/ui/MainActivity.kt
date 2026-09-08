@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -19,7 +20,9 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ua.alerts.mobile.service.AlertForegroundService
-import ua.alerts.mobile.ui.screens.HomeScreen
+import ua.alerts.mobile.ui.screens.DashboardScreen
+import ua.alerts.mobile.ui.screens.GlobalSettingsScreen
+import ua.alerts.mobile.ui.screens.ProfileConfigScreen
 import ua.alerts.mobile.ui.screens.RegionSelectScreen
 import ua.alerts.mobile.ui.theme.AlertsTheme
 
@@ -30,7 +33,7 @@ class MainActivity : ComponentActivity() {
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
-        // Permission granted/denied handled
+        // Permission handled
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +42,7 @@ class MainActivity : ComponentActivity() {
         checkNotificationPermission()
 
         lifecycleScope.launch {
-            val enabled = viewModel.settingsRepo.serviceEnabled.first()
+            val enabled = viewModel.settingsRepo.globalMonitoring.first()
             if (enabled) {
                 AlertForegroundService.startService(this@MainActivity)
             }
@@ -51,37 +54,75 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val uiState by viewModel.uiState.collectAsState()
-                    val soundAlarm by viewModel.soundAlarm.collectAsState()
-                    val vibrateAlarm by viewModel.vibrateAlarm.collectAsState()
-                    val soundClear by viewModel.soundClear.collectAsState()
-                    val vibrateClear by viewModel.vibrateClear.collectAsState()
-                    val serviceEnabled by viewModel.serviceEnabled.collectAsState()
+                    val currentScreen by viewModel.currentScreen.collectAsState()
 
-                    if (uiState.isRegionPickerOpen) {
-                        RegionSelectScreen(
-                            currentStatus = uiState.status,
-                            onSelectRegion = { regId, regName, distId, distName ->
-                                viewModel.selectRegion(regId, regName, distId, distName)
-                            },
-                            onBack = { viewModel.closeRegionPicker() }
-                        )
-                    } else {
-                        HomeScreen(
-                            uiState = uiState,
-                            soundAlarm = soundAlarm,
-                            vibrateAlarm = vibrateAlarm,
-                            soundClear = soundClear,
-                            vibrateClear = vibrateClear,
-                            serviceEnabled = serviceEnabled,
-                            onOpenRegionPicker = { viewModel.openRegionPicker() },
-                            onRefresh = { viewModel.refreshData() },
-                            onToggleService = { viewModel.toggleService(it) },
-                            onToggleSoundAlarm = { viewModel.setSoundAlarm(it) },
-                            onToggleVibrateAlarm = { viewModel.setVibrateAlarm(it) },
-                            onToggleSoundClear = { viewModel.setSoundClear(it) },
-                            onToggleVibrateClear = { viewModel.setVibrateClear(it) }
-                        )
+                    BackHandler(enabled = currentScreen != Screen.Dashboard) {
+                        viewModel.navigateBack()
+                    }
+
+                    when (val screen = currentScreen) {
+                        is Screen.Dashboard -> {
+                            val profiles by viewModel.profiles.collectAsState()
+                            val profileAlerts by viewModel.profileAlerts.collectAsState()
+                            val connectionStatus by viewModel.connectionStatus.collectAsState()
+
+                            DashboardScreen(
+                                profiles = profiles,
+                                profileAlerts = profileAlerts,
+                                connectionStatus = connectionStatus,
+                                onRefresh = { viewModel.refreshData() },
+                                onOpenSettings = { viewModel.navigateTo(Screen.GlobalSettings) },
+                                onProfileClick = { profile ->
+                                    viewModel.initDraftProfile(profile.id)
+                                    viewModel.navigateTo(Screen.ProfileConfig(profile.id))
+                                },
+                                onAddProfile = {
+                                    viewModel.initDraftProfile(null)
+                                    viewModel.navigateTo(Screen.ProfileConfig(null))
+                                }
+                            )
+                        }
+
+                        is Screen.GlobalSettings -> {
+                            val globalMonitoring by viewModel.globalMonitoring.collectAsState()
+                            val connectedWatchCount by viewModel.connectedWatchCount.collectAsState()
+
+                            GlobalSettingsScreen(
+                                globalMonitoring = globalMonitoring,
+                                connectedWatchCount = connectedWatchCount,
+                                onToggleGlobalMonitoring = { viewModel.setGlobalMonitoring(it) },
+                                onSyncWatch = { viewModel.refreshData() },
+                                onBack = { viewModel.navigateBack() }
+                            )
+                        }
+
+                        is Screen.ProfileConfig -> {
+                            val draftProfile by viewModel.draftProfile.collectAsState()
+
+                            ProfileConfigScreen(
+                                profile = draftProfile,
+                                isEditMode = screen.profileId != null,
+                                onUpdateProfile = { updater -> viewModel.updateDraft(updater) },
+                                onSaveNewProfile = { viewModel.saveDraftProfile() },
+                                onDeleteProfile = { id -> viewModel.deleteProfile(id) },
+                                onOpenRegionPicker = { viewModel.navigateTo(Screen.RegionPicker(screen.profileId)) },
+                                onBack = { viewModel.navigateBack() }
+                            )
+                        }
+
+                        is Screen.RegionPicker -> {
+                            val draftProfile by viewModel.draftProfile.collectAsState()
+
+                            RegionSelectScreen(
+                                selectedRegionKey = draftProfile?.regionId,
+                                selectedDistrictKey = draftProfile?.districtId,
+                                onSelectRegion = { regId, regName, distId, distName ->
+                                    viewModel.setDraftRegion(regId, regName, distId, distName)
+                                    viewModel.navigateBack()
+                                },
+                                onBack = { viewModel.navigateBack() }
+                            )
+                        }
                     }
                 }
             }

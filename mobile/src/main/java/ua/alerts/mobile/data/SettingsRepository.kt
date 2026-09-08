@@ -9,71 +9,121 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import ua.alerts.shared.model.Profile
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "alert_settings")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class SettingsRepository(private val context: Context) {
 
     companion object {
-        val KEY_REGION_ID = stringPreferencesKey("region_id")
-        val KEY_REGION_NAME = stringPreferencesKey("region_name")
-        val KEY_DISTRICT_ID = stringPreferencesKey("district_id")
-        val KEY_DISTRICT_NAME = stringPreferencesKey("district_name")
-
-        val KEY_SOUND_ALARM = booleanPreferencesKey("sound_alarm")
-        val KEY_VIBRATE_ALARM = booleanPreferencesKey("vibrate_alarm")
-        val KEY_SOUND_CLEAR = booleanPreferencesKey("sound_clear")
-        val KEY_VIBRATE_CLEAR = booleanPreferencesKey("vibrate_clear")
+        val KEY_PROFILES_JSON = stringPreferencesKey("profiles_json")
+        val KEY_GLOBAL_MONITORING = booleanPreferencesKey("global_monitoring")
         val KEY_SERVICE_ENABLED = booleanPreferencesKey("service_enabled")
+
+        private val json = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
     }
 
-    val regionId: Flow<String> = context.dataStore.data.map { it[KEY_REGION_ID] ?: "kyivska" }
-    val regionName: Flow<String> = context.dataStore.data.map { it[KEY_REGION_NAME] ?: "Київська область" }
-    val districtId: Flow<String?> = context.dataStore.data.map { it[KEY_DISTRICT_ID] }
-    val districtName: Flow<String?> = context.dataStore.data.map { it[KEY_DISTRICT_NAME] }
-
-    val soundOnAlarm: Flow<Boolean> = context.dataStore.data.map { it[KEY_SOUND_ALARM] ?: true }
-    val vibrateOnAlarm: Flow<Boolean> = context.dataStore.data.map { it[KEY_VIBRATE_ALARM] ?: true }
-    val soundOnClear: Flow<Boolean> = context.dataStore.data.map { it[KEY_SOUND_CLEAR] ?: true }
-    val vibrateOnClear: Flow<Boolean> = context.dataStore.data.map { it[KEY_VIBRATE_CLEAR] ?: true }
-    val serviceEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_SERVICE_ENABLED] ?: true }
-
-    suspend fun setSelectedRegion(
-        regionId: String,
-        regionName: String,
-        districtId: String?,
-        districtName: String?
-    ) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_REGION_ID] = regionId
-            prefs[KEY_REGION_NAME] = regionName
-            if (districtId != null && districtName != null) {
-                prefs[KEY_DISTRICT_ID] = districtId
-                prefs[KEY_DISTRICT_NAME] = districtName
-            } else {
-                prefs.remove(KEY_DISTRICT_ID)
-                prefs.remove(KEY_DISTRICT_NAME)
+    val profiles: Flow<List<Profile>> = context.dataStore.data.map { prefs ->
+        val jsonStr = prefs[KEY_PROFILES_JSON]
+        if (jsonStr.isNullOrBlank()) {
+            emptyList()
+        } else {
+            try {
+                json.decodeFromString<List<Profile>>(jsonStr)
+            } catch (_: Exception) {
+                emptyList()
             }
         }
     }
 
-    suspend fun setSoundOnAlarm(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_SOUND_ALARM] = enabled }
+    val globalMonitoring: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_GLOBAL_MONITORING] ?: prefs[KEY_SERVICE_ENABLED] ?: true
     }
 
-    suspend fun setVibrateOnAlarm(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_VIBRATE_ALARM] = enabled }
+    val serviceEnabled: Flow<Boolean> = globalMonitoring
+
+    suspend fun setGlobalMonitoring(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_GLOBAL_MONITORING] = enabled
+            prefs[KEY_SERVICE_ENABLED] = enabled
+        }
     }
 
-    suspend fun setSoundOnClear(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_SOUND_CLEAR] = enabled }
+    suspend fun setServiceEnabled(enabled: Boolean) = setGlobalMonitoring(enabled)
+
+    suspend fun saveProfile(profile: Profile) {
+        context.dataStore.edit { prefs ->
+            val currentList = try {
+                val jsonStr = prefs[KEY_PROFILES_JSON]
+                if (!jsonStr.isNullOrBlank()) json.decodeFromString<List<Profile>>(jsonStr) else emptyList()
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val updatedList = if (currentList.any { it.id == profile.id }) {
+                currentList.map { existing ->
+                    if (existing.id == profile.id) {
+                        profile
+                    } else if (profile.activeOnWatch) {
+                        existing.copy(activeOnWatch = false)
+                    } else {
+                        existing
+                    }
+                }
+            } else {
+                val base = if (profile.activeOnWatch) {
+                    currentList.map { it.copy(activeOnWatch = false) }
+                } else {
+                    currentList
+                }
+                base + profile
+            }
+
+            prefs[KEY_PROFILES_JSON] = json.encodeToString(updatedList)
+        }
     }
 
-    suspend fun setVibrateOnClear(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_VIBRATE_CLEAR] = enabled }
+    suspend fun updateProfile(profile: Profile) = saveProfile(profile)
+
+    suspend fun deleteProfile(profileId: String) {
+        context.dataStore.edit { prefs ->
+            val currentList = try {
+                val jsonStr = prefs[KEY_PROFILES_JSON]
+                if (!jsonStr.isNullOrBlank()) json.decodeFromString<List<Profile>>(jsonStr) else emptyList()
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val filtered = currentList.filter { it.id != profileId }
+            val wasActiveOnWatch = currentList.find { it.id == profileId }?.activeOnWatch == true
+            val finalList = if (wasActiveOnWatch && filtered.isNotEmpty() && filtered.none { it.activeOnWatch }) {
+                filtered.mapIndexed { index, p -> if (index == 0) p.copy(activeOnWatch = true) else p }
+            } else {
+                filtered
+            }
+
+            prefs[KEY_PROFILES_JSON] = json.encodeToString(finalList)
+        }
     }
 
-    suspend fun setServiceEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_SERVICE_ENABLED] = enabled }
+    suspend fun setActiveWatchProfile(profileId: String) {
+        context.dataStore.edit { prefs ->
+            val currentList = try {
+                val jsonStr = prefs[KEY_PROFILES_JSON]
+                if (!jsonStr.isNullOrBlank()) json.decodeFromString<List<Profile>>(jsonStr) else emptyList()
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            val updatedList = currentList.map { p ->
+                p.copy(activeOnWatch = (p.id == profileId))
+            }
+            prefs[KEY_PROFILES_JSON] = json.encodeToString(updatedList)
+        }
     }
 }

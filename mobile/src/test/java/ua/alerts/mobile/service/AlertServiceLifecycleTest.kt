@@ -71,4 +71,26 @@ class AlertServiceLifecycleTest {
         assertFalse(status3.isAlarm)
         assertTrue(status2.isAlarm != status3.isAlarm)
     }
+
+    @Test
+    fun testMultiProfileIndependentAlertEvaluation() {
+        val response = NeptunAlertsResponse(
+            oblasts = listOf(
+                NeptunOblastAlert(key = "київська", name = "Київська область", since = "19:00", level = "red")
+            ),
+            raions = emptyList()
+        )
+
+        // Profile 1: Kyiv oblast (in alarm)
+        val statusKyiv = DefaultRegions.computeAlertStatus(response, "kyivska", "Київська область", null, null)
+        assertTrue(statusKyiv.isAlarm)
+        assertEquals("red", statusKyiv.level)
+
+        // Profile 2: Lviv oblast (calm)
+        val statusLviv = DefaultRegions.computeAlertStatus(response, "lvivska", "Львівська область", null, null)
+        assertFalse(statusLviv.isAlarm)
+
+        // Profiles remain completely independent
+        assertTrue(statusKyiv.isAlarm != statusLviv.isAlarm)
+    }
 }

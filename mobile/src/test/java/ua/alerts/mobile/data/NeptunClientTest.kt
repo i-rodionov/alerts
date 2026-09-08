@@ -75,6 +75,17 @@ class NeptunClientTest {
         assertEquals("yellow", alertsData.raions[0].level)
         assertEquals(listOf("Дронова загроза"), alertsData.raions[0].reasons)
 
+        val realWsFrame = """{"type":"alerts","ts":"2026-09-08T12:59:39.962Z","data":{"version":1788872379,"updatedAt":"2026-09-08T12:59:39.488432003Z","raions":[{"key":"бахмутський","name":"Бахмутський район","oblast":"Донецька область","since":"2026-09-08T04:42:56.778799Z","level":"yellow","reasons":["Дронова загроза (жовтий рівень)"]}]}}"""
+        val realEnv = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(realWsFrame)
+        assertEquals("alerts", realEnv.type)
+        assertEquals("2026-09-08T12:59:39.962Z", realEnv.ts)
+        val realAlertsData = json.decodeFromJsonElement<ua.alerts.shared.model.NeptunAlertsResponse>(realEnv.data!!)
+        assertEquals(1788872379L, realAlertsData.version)
+        assertEquals("2026-09-08T12:59:39.488432003Z", realAlertsData.updatedAt)
+        assertEquals(1, realAlertsData.raions.size)
+        assertEquals("2026-09-08T04:42:56.778799Z", realAlertsData.raions[0].since)
+        assertEquals("yellow", realAlertsData.raions[0].level)
+
         val snapshotEnvelope = """{"type":"snapshot","data":{"threats":[{"id":"t1","type":"shahed"}]}}"""
         val env2 = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(snapshotEnvelope)
         assertEquals("snapshot", env2.type)

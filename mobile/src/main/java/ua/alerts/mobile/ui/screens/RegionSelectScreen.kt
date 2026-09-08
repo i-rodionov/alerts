@@ -51,12 +51,13 @@ import ua.alerts.shared.model.Region
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegionSelectScreen(
-    currentStatus: AlertStatus,
+    selectedRegionKey: String? = null,
+    selectedDistrictKey: String? = null,
     onSelectRegion: (regionId: String, regionName: String, districtId: String?, districtName: String?) -> Unit,
     onBack: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var expandedRegionId by remember { mutableStateOf<String?>(currentStatus.regionKey) }
+    var expandedRegionId by remember { mutableStateOf<String?>(selectedRegionKey) }
 
     val filteredRegions = remember(searchQuery) {
         if (searchQuery.isBlank()) {
@@ -115,7 +116,8 @@ fun RegionSelectScreen(
                 items(filteredRegions, key = { it.id }) { region ->
                     RegionItem(
                         region = region,
-                        currentStatus = currentStatus,
+                        selectedRegionKey = selectedRegionKey,
+                        selectedDistrictKey = selectedDistrictKey,
                         isExpanded = expandedRegionId == region.id || searchQuery.isNotBlank(),
                         onToggleExpand = {
                             expandedRegionId = if (expandedRegionId == region.id) null else region.id
@@ -129,14 +131,29 @@ fun RegionSelectScreen(
 }
 
 @Composable
+fun RegionSelectScreen(
+    currentStatus: AlertStatus,
+    onSelectRegion: (regionId: String, regionName: String, districtId: String?, districtName: String?) -> Unit,
+    onBack: () -> Unit
+) {
+    RegionSelectScreen(
+        selectedRegionKey = currentStatus.regionKey,
+        selectedDistrictKey = currentStatus.districtKey,
+        onSelectRegion = onSelectRegion,
+        onBack = onBack
+    )
+}
+
+@Composable
 fun RegionItem(
     region: Region,
-    currentStatus: AlertStatus,
+    selectedRegionKey: String?,
+    selectedDistrictKey: String?,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
     onSelect: (regionId: String, regionName: String, districtId: String?, districtName: String?) -> Unit
 ) {
-    val isRegionSelected = currentStatus.regionKey == region.id && currentStatus.districtKey == null
+    val isRegionSelected = selectedRegionKey == region.id && selectedDistrictKey == null
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -223,7 +240,7 @@ fun RegionItem(
 
                     // Raions
                     region.raions.forEach { district ->
-                        val isDistrictSelected = currentStatus.districtKey == district.id
+                        val isDistrictSelected = selectedDistrictKey == district.id
                         Divider()
                         Row(
                             modifier = Modifier

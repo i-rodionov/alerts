@@ -74,4 +74,21 @@ class AlertRepositoryTest {
         AlertRepository.setConnectedWatchCount(2)
         assertEquals(2, AlertRepository.connectedWatchCount.value)
     }
+
+    @Test
+    fun testProfileAlertsUpdatesAndReset() {
+        assertTrue(AlertRepository.profileAlerts.value.isEmpty())
+
+        val status1 = AlertStatus(isAlarm = true, regionKey = "kyivska", regionName = "Київська область")
+        val status2 = AlertStatus(isAlarm = false, regionKey = "odeska", regionName = "Одеська область")
+        val map = mapOf("profile-1" to status1, "profile-2" to status2)
+
+        AlertRepository.setProfileAlerts(map)
+        assertEquals(2, AlertRepository.profileAlerts.value.size)
+        assertEquals(status1, AlertRepository.profileAlerts.value["profile-1"])
+        assertEquals(status2, AlertRepository.profileAlerts.value["profile-2"])
+
+        AlertRepository.reset()
+        assertTrue(AlertRepository.profileAlerts.value.isEmpty())
+    }
 }

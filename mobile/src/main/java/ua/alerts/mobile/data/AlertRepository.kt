@@ -16,6 +16,9 @@ object AlertRepository {
     private val _alertStatus = MutableStateFlow(AlertStatus())
     val alertStatus: StateFlow<AlertStatus> = _alertStatus.asStateFlow()
 
+    private val _profileAlerts = MutableStateFlow<Map<String, AlertStatus>>(emptyMap())
+    val profileAlerts: StateFlow<Map<String, AlertStatus>> = _profileAlerts.asStateFlow()
+
     private val _connectedWatchCount = MutableStateFlow(0)
     val connectedWatchCount: StateFlow<Int> = _connectedWatchCount.asStateFlow()
 
@@ -38,6 +41,10 @@ object AlertRepository {
         _alertStatus.value = status
     }
 
+    fun setProfileAlerts(alerts: Map<String, AlertStatus>) {
+        _profileAlerts.value = alerts
+    }
+
     fun setConnectedWatchCount(count: Int) {
         _connectedWatchCount.value = count
     }
@@ -46,6 +53,7 @@ object AlertRepository {
         _isServiceRunning.value = false
         _connectionStatus.value = ConnectionStatus.STOPPED
         _alertStatus.value = AlertStatus()
+        _profileAlerts.value = emptyMap()
         _connectedWatchCount.value = 0
         _lastError.value = null
     }

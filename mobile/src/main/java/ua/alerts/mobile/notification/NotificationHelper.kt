@@ -15,6 +15,8 @@ import ua.alerts.mobile.R
 import ua.alerts.mobile.data.ConnectionStatus
 import ua.alerts.mobile.ui.MainActivity
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.Profile
+import kotlin.math.abs
 
 class NotificationHelper(private val context: Context) {
 
@@ -23,11 +25,11 @@ class NotificationHelper(private val context: Context) {
 
     companion object {
         const val NOTIFICATION_ID_SERVICE = 1001
-        const val NOTIFICATION_ID_ALARM = 1002
+        const val NOTIFICATION_ID_ALARM_BASE = 2000
     }
 
     fun buildServiceNotification(
-        status: AlertStatus,
+        status: AlertStatus? = null,
         connectionStatus: ConnectionStatus = ConnectionStatus.CONNECTED
     ): Notification {
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -40,12 +42,6 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = when {
-            status.isYellow -> context.getString(R.string.status_alarm_yellow) + " 🟡"
-            status.isRed -> context.getString(R.string.status_alarm_red) + " 🔴"
-            else -> context.getString(R.string.status_clear) + " 🟢"
-        }
-
         val connText = when (connectionStatus) {
             ConnectionStatus.CONNECTED -> context.getString(R.string.status_connected)
             ConnectionStatus.CONNECTING -> context.getString(R.string.status_connecting)
@@ -54,13 +50,30 @@ class NotificationHelper(private val context: Context) {
             ConnectionStatus.STOPPED -> context.getString(R.string.status_monitoring_disabled)
         }
 
-        val regionText = status.displayName.ifEmpty { context.getString(R.string.app_name) }
-        val text = "$regionText • ${context.getString(R.string.monitoring_active)} [$connText]"
+        val hasStatus = status != null && status.regionName.isNotEmpty()
+        val title = if (hasStatus) {
+            when {
+                status!!.isYellow -> context.getString(R.string.status_alarm_yellow) + " 🟡"
+                status.isRed -> context.getString(R.string.status_alarm_red) + " 🔴"
+                else -> context.getString(R.string.status_clear) + " 🟢"
+            }
+        } else {
+            context.getString(R.string.app_name)
+        }
+
+        val regionPrefix = if (hasStatus) "${status!!.displayName} • " else ""
+        val text = "$regionPrefix${context.getString(R.string.monitoring_active)} [$connText]"
+
+        val smallIcon = if (hasStatus && status!!.isAlarm) {
+            R.drawable.ic_warning_siren
+        } else {
+            R.drawable.ic_shield_check
+        }
 
         return NotificationCompat.Builder(context, AlertApp.CHANNEL_SERVICE_ID)
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(if (status.isAlarm) R.drawable.ic_warning_siren else R.drawable.ic_shield_check)
+            .setSmallIcon(smallIcon)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setSilent(true)
@@ -69,31 +82,39 @@ class NotificationHelper(private val context: Context) {
     }
 
     fun notifyAlarmTransition(
-        status: AlertStatus,
-        soundEnabled: Boolean,
-        vibrateEnabled: Boolean
+        profile: Profile,
+        status: AlertStatus
     ) {
+        val sound = if (status.isAlarm) profile.soundOnAlarm else profile.soundOnClear
+        val vibrate = if (status.isAlarm) profile.vibrateOnAlarm else profile.vibrateOnClear
+
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            profile.id.hashCode(),
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val channelId = if (status.isAlarm) AlertApp.CHANNEL_ALERTS_ID else AlertApp.CHANNEL_CLEAR_ID
-        val title = when {
-            status.isYellow -> "🟡 " + context.getString(R.string.status_alarm_yellow)
-            status.isRed -> "🔴 " + context.getString(R.string.status_alarm_red)
-            else -> "🟢 " + context.getString(R.string.status_clear)
+        val title = if (status.isAlarm) {
+            if (status.isYellow) {
+                "🟡 " + context.getString(R.string.status_alarm_yellow)
+            } else {
+                "🔴 " + context.getString(R.string.status_alarm_red)
+            }
+        } else {
+            "🟢 " + context.getString(R.string.status_clear)
         }
 
         val reasonSuffix = if (status.isAlarm && status.reasons.isNotEmpty()) " (${status.reasons.joinToString(", ")})" else ""
-        val message = "${status.displayName}: ${
-            if (status.isAlarm) "Оголошено повітряну тривогу!$reasonSuffix" else "Відбій загрози."
-        }"
+        val message = if (status.isAlarm) {
+            "${profile.displayName}: Оголошено повітряну тривогу!$reasonSuffix"
+        } else {
+            "${profile.displayName}: Відбій повітряної тривоги."
+        }
 
         val builder = NotificationCompat.Builder(context, channelId)
             .setContentTitle(title)
@@ -103,15 +124,35 @@ class NotificationHelper(private val context: Context) {
             .setAutoCancel(true)
             .setPriority(if (status.isAlarm) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
 
-        if (!soundEnabled) {
+        if (!sound) {
             builder.setSilent(true)
         }
 
-        if (vibrateEnabled) {
+        if (vibrate) {
             triggerVibration(status.isAlarm)
         }
 
-        notificationManager.notify(NOTIFICATION_ID_ALARM, builder.build())
+        val notificationId = NOTIFICATION_ID_ALARM_BASE + abs(profile.id.hashCode() % 100000)
+        notificationManager.notify(notificationId, builder.build())
+    }
+
+    fun notifyAlarmTransition(
+        status: AlertStatus,
+        soundEnabled: Boolean,
+        vibrateEnabled: Boolean
+    ) {
+        val dummyProfile = Profile(
+            id = status.regionKey,
+            regionId = status.regionKey,
+            regionName = status.regionName,
+            districtId = status.districtKey,
+            districtName = status.districtName,
+            soundOnAlarm = soundEnabled,
+            vibrateOnAlarm = vibrateEnabled,
+            soundOnClear = soundEnabled,
+            vibrateOnClear = vibrateEnabled
+        )
+        notifyAlarmTransition(dummyProfile, status)
     }
 
     private fun triggerVibration(isAlarm: Boolean) {

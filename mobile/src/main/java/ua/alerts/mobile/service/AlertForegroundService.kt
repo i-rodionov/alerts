@@ -15,7 +15,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ua.alerts.mobile.data.AlertRepository
 import ua.alerts.mobile.data.ConnectionStatus
@@ -26,6 +25,7 @@ import ua.alerts.mobile.notification.NotificationHelper
 import ua.alerts.shared.data.DefaultRegions
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.NeptunAlertsResponse
+import ua.alerts.shared.model.Profile
 
 class AlertForegroundService : Service() {
 
@@ -67,8 +67,8 @@ class AlertForegroundService : Service() {
     private var connectionStatusJob: Job? = null
     private var watchCountJob: Job? = null
     private var hasInitialized = false
-    private var lastAlarmState: Boolean? = null
-    private var lastAlarmLevel: String? = null
+    private val lastProfileAlarmState = mutableMapOf<String, Boolean>()
+    private val lastProfileAlarmLevel = mutableMapOf<String, String?>()
 
     override fun onCreate() {
         super.onCreate()
@@ -123,7 +123,6 @@ class AlertForegroundService : Service() {
                 }
             }
             else -> {
-                // ACTION_START or system restart with null intent
                 startMonitoring()
             }
         }
@@ -132,7 +131,6 @@ class AlertForegroundService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // Keep service running even when task is removed from Recents
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -175,52 +173,67 @@ class AlertForegroundService : Service() {
             }
         }
 
-        // Observe incoming alerts and compute status for the selected region
+        // Observe incoming alerts and compute status for all profiles
         monitoringJob = serviceScope.launch {
             combine(
                 neptunClient.alertsFlow,
-                settingsRepo.regionId,
-                settingsRepo.regionName,
-                settingsRepo.districtId,
-                settingsRepo.districtName
-            ) { alerts, regId, regName, distId, distName ->
-                computeAlertStatus(alerts, regId, regName, distId, distName)
-            }.collect { newStatus ->
-                val prevAlarm = lastAlarmState
-                val prevLevel = lastAlarmLevel
-                AlertRepository.setAlertStatus(newStatus)
+                settingsRepo.profiles,
+                settingsRepo.globalMonitoring
+            ) { alerts, profiles, isGlobalEnabled ->
+                Triple(alerts, profiles, isGlobalEnabled)
+            }.collect { (alerts, profiles, isGlobalEnabled) ->
+                val statusMap = mutableMapOf<String, AlertStatus>()
+                for (profile in profiles) {
+                    val status = computeAlertStatus(alerts, profile)
+                    statusMap[profile.id] = status
+                }
+                AlertRepository.setProfileAlerts(statusMap)
+
+                // Active watch profile status
+                val watchProfile = profiles.find { it.activeOnWatch } ?: profiles.firstOrNull()
+                val watchStatus = if (watchProfile != null) {
+                    statusMap[watchProfile.id] ?: AlertStatus()
+                } else {
+                    AlertStatus()
+                }
+                AlertRepository.setAlertStatus(watchStatus)
 
                 // Update ongoing service notification
                 val notification = notificationHelper.buildServiceNotification(
-                    status = newStatus,
+                    status = watchStatus,
                     connectionStatus = neptunClient.connectionStatus.value
                 )
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID_SERVICE, notification)
 
                 // Sync status with Galaxy Watch
-                wearSyncManager.syncAlertStatus(newStatus)
+                wearSyncManager.syncAlertStatus(watchStatus)
 
-                // Trigger sound/vibration on state transition or level escalation (Yellow -> Red)
-                val isEscalation = prevAlarm == true && newStatus.isAlarm &&
-                        prevLevel.equals("yellow", ignoreCase = true) &&
-                        newStatus.isRed
-                val isStateTransition = prevAlarm != null && prevAlarm != newStatus.isAlarm
+                // Trigger sound/vibration notifications per monitored profile
+                val currentProfileIds = profiles.map { it.id }.toSet()
+                lastProfileAlarmState.keys.retainAll(currentProfileIds)
+                lastProfileAlarmLevel.keys.retainAll(currentProfileIds)
 
-                if (hasInitialized && (isStateTransition || isEscalation)) {
-                    val soundAlarm = settingsRepo.soundOnAlarm.first()
-                    val vibrateAlarm = settingsRepo.vibrateOnAlarm.first()
-                    val soundClear = settingsRepo.soundOnClear.first()
-                    val vibrateClear = settingsRepo.vibrateOnClear.first()
+                for (profile in profiles) {
+                    val status = statusMap[profile.id] ?: continue
+                    val isMonitored = isGlobalEnabled && profile.backgroundMonitoring
 
-                    val sound = if (newStatus.isAlarm) soundAlarm else soundClear
-                    val vibrate = if (newStatus.isAlarm) vibrateAlarm else vibrateClear
+                    val prevAlarm = lastProfileAlarmState[profile.id]
+                    val prevLevel = lastProfileAlarmLevel[profile.id]
 
-                    notificationHelper.notifyAlarmTransition(newStatus, sound, vibrate)
+                    val isEscalation = prevAlarm == true && status.isAlarm &&
+                            prevLevel.equals("yellow", ignoreCase = true) &&
+                            status.isRed
+                    val isStateTransition = prevAlarm != null && prevAlarm != status.isAlarm
+
+                    if (isMonitored && hasInitialized && (isStateTransition || isEscalation)) {
+                        notificationHelper.notifyAlarmTransition(profile, status)
+                    }
+
+                    lastProfileAlarmState[profile.id] = status.isAlarm
+                    lastProfileAlarmLevel[profile.id] = status.level
                 }
 
-                lastAlarmState = newStatus.isAlarm
-                lastAlarmLevel = newStatus.level
                 hasInitialized = true
             }
         }
@@ -239,11 +252,14 @@ class AlertForegroundService : Service() {
 
     private fun computeAlertStatus(
         alerts: NeptunAlertsResponse,
-        regionId: String,
-        regionName: String,
-        districtId: String?,
-        districtName: String?
+        profile: Profile
     ): AlertStatus {
-        return DefaultRegions.computeAlertStatus(alerts, regionId, regionName, districtId, districtName)
+        return DefaultRegions.computeAlertStatus(
+            alerts,
+            profile.regionId,
+            profile.regionName,
+            profile.districtId,
+            profile.districtName
+        )
     }
 }

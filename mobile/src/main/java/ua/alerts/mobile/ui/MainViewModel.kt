@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import ua.alerts.mobile.data.AlertRepository
@@ -14,66 +14,128 @@ import ua.alerts.mobile.data.ConnectionStatus
 import ua.alerts.mobile.data.SettingsRepository
 import ua.alerts.mobile.service.AlertForegroundService
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.Profile
 
-data class MainUiState(
-    val status: AlertStatus = AlertStatus(),
-    val connectionStatus: ConnectionStatus = ConnectionStatus.STOPPED,
-    val connectedWatchCount: Int = 0,
-    val isRegionPickerOpen: Boolean = false,
-    val isServiceRunning: Boolean = false
-)
+sealed interface Screen {
+    data object Dashboard : Screen
+    data object GlobalSettings : Screen
+    data class ProfileConfig(val profileId: String?) : Screen
+    data class RegionPicker(val profileId: String?) : Screen
+}
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val settingsRepo = SettingsRepository(application)
 
-    val soundAlarm = settingsRepo.soundOnAlarm.stateIn(viewModelScope, SharingStarted.Eagerly, true)
-    val vibrateAlarm = settingsRepo.vibrateOnAlarm.stateIn(viewModelScope, SharingStarted.Eagerly, true)
-    val soundClear = settingsRepo.soundOnClear.stateIn(viewModelScope, SharingStarted.Eagerly, true)
-    val vibrateClear = settingsRepo.vibrateOnClear.stateIn(viewModelScope, SharingStarted.Eagerly, true)
-    val serviceEnabled = settingsRepo.serviceEnabled.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val profiles: StateFlow<List<Profile>> = settingsRepo.profiles
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    private val _isRegionPickerOpen = MutableStateFlow(false)
+    val globalMonitoring: StateFlow<Boolean> = settingsRepo.globalMonitoring
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
-    val uiState: StateFlow<MainUiState> = combine(
-        AlertRepository.alertStatus,
-        AlertRepository.connectionStatus,
-        AlertRepository.connectedWatchCount,
-        AlertRepository.isServiceRunning,
-        _isRegionPickerOpen
-    ) { status, connectionStatus, watchCount, isRunning, pickerOpen ->
-        MainUiState(
-            status = status,
-            connectionStatus = connectionStatus,
-            connectedWatchCount = watchCount,
-            isRegionPickerOpen = pickerOpen,
-            isServiceRunning = isRunning
+    val profileAlerts: StateFlow<Map<String, AlertStatus>> = AlertRepository.profileAlerts
+    val connectionStatus: StateFlow<ConnectionStatus> = AlertRepository.connectionStatus
+    val connectedWatchCount: StateFlow<Int> = AlertRepository.connectedWatchCount
+    val isServiceRunning: StateFlow<Boolean> = AlertRepository.isServiceRunning
+
+    private val screenBackstack = mutableListOf<Screen>(Screen.Dashboard)
+    private val _currentScreen = MutableStateFlow<Screen>(Screen.Dashboard)
+    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+
+    private val _draftProfile = MutableStateFlow<Profile?>(null)
+    val draftProfile: StateFlow<Profile?> = _draftProfile.asStateFlow()
+
+    fun navigateTo(screen: Screen) {
+        screenBackstack.add(screen)
+        _currentScreen.value = screen
+    }
+
+    fun navigateBack() {
+        if (screenBackstack.size > 1) {
+            screenBackstack.removeAt(screenBackstack.lastIndex)
+            _currentScreen.value = screenBackstack.last()
+        } else {
+            _currentScreen.value = Screen.Dashboard
+        }
+    }
+
+    fun initDraftProfile(profileId: String?) {
+        if (profileId == null) {
+            val hasActiveWatch = profiles.value.any { it.activeOnWatch }
+            _draftProfile.value = Profile(
+                backgroundMonitoring = true,
+                activeOnWatch = !hasActiveWatch,
+                soundOnAlarm = true,
+                vibrateOnAlarm = true,
+                soundOnClear = true,
+                vibrateOnClear = true
+            )
+        } else {
+            _draftProfile.value = profiles.value.find { it.id == profileId }
+        }
+    }
+
+    fun updateDraft(updater: (Profile) -> Profile) {
+        val current = _draftProfile.value ?: return
+        val updated = updater(current)
+        _draftProfile.value = updated
+        // Auto-save in Edit mode (profile already exists in repository)
+        if (profiles.value.any { it.id == updated.id }) {
+            updateProfile(updated)
+        }
+    }
+
+    fun setDraftRegion(regionId: String, regionName: String, districtId: String?, districtName: String?) {
+        val current = _draftProfile.value ?: return
+        val updated = current.copy(
+            regionId = regionId,
+            regionName = regionName,
+            districtId = districtId,
+            districtName = districtName
         )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, MainUiState())
-
-    fun openRegionPicker() {
-        _isRegionPickerOpen.value = true
+        _draftProfile.value = updated
+        // Auto-save in Edit mode
+        if (profiles.value.any { it.id == updated.id }) {
+            updateProfile(updated)
+        }
     }
 
-    fun closeRegionPicker() {
-        _isRegionPickerOpen.value = false
+    fun saveDraftProfile() {
+        val draft = _draftProfile.value ?: return
+        if (draft.regionId.isBlank()) return
+        saveProfile(draft)
     }
 
-    fun selectRegion(regionId: String, regionName: String, districtId: String?, districtName: String?) {
+    fun saveProfile(profile: Profile) {
         viewModelScope.launch {
-            settingsRepo.setSelectedRegion(regionId, regionName, districtId, districtName)
-            closeRegionPicker()
+            settingsRepo.saveProfile(profile)
+            navigateBack()
             refreshData()
         }
     }
 
-    fun refreshData() {
-        AlertForegroundService.refresh(getApplication())
+    fun updateProfile(profile: Profile) {
+        viewModelScope.launch {
+            settingsRepo.updateProfile(profile)
+        }
     }
 
-    fun toggleService(enabled: Boolean) {
+    fun deleteProfile(profileId: String) {
         viewModelScope.launch {
-            settingsRepo.setServiceEnabled(enabled)
+            settingsRepo.deleteProfile(profileId)
+            navigateBack()
+        }
+    }
+
+    fun setActiveWatchProfile(profileId: String) {
+        viewModelScope.launch {
+            settingsRepo.setActiveWatchProfile(profileId)
+        }
+    }
+
+    fun setGlobalMonitoring(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepo.setGlobalMonitoring(enabled)
             if (enabled) {
                 AlertForegroundService.startService(getApplication())
             } else {
@@ -82,9 +144,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setSoundAlarm(enabled: Boolean) = viewModelScope.launch { settingsRepo.setSoundOnAlarm(enabled) }
-    fun setVibrateAlarm(enabled: Boolean) = viewModelScope.launch { settingsRepo.setVibrateOnAlarm(enabled) }
-    fun setSoundClear(enabled: Boolean) = viewModelScope.launch { settingsRepo.setSoundOnClear(enabled) }
-    fun setVibrateClear(enabled: Boolean) = viewModelScope.launch { settingsRepo.setVibrateOnClear(enabled) }
+    fun refreshData() {
+        AlertForegroundService.refresh(getApplication())
+    }
 }
-
