@@ -6,6 +6,8 @@
     <string name="complication_preview_title">Київ</string>
     <string name="status_clear">Чисто</string>
     <string name="status_alarm">ТРИВОГА</string>
+    <string name="status_alarm_yellow">ЖОВТИЙ РІВЕНЬ</string>
+    <string name="status_alarm_red">ЧЕРВОНИЙ РІВЕНЬ</string>
     <string name="status_offline">Немає зв\'язку</string>
     <string name="sync_button">Синхронізувати</string>
     <string name="last_synced">Синхр.: %s</string>

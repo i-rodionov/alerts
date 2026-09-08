@@ -50,7 +50,7 @@ class AlertServiceLifecycleTest {
 
         val responseWithAlert = NeptunAlertsResponse(
             oblasts = listOf(
-                NeptunOblastAlert(key = "київська", name = "Київська область", since = "19:00")
+                NeptunOblastAlert(key = "київська", name = "Київська область", since = "19:00", level = "red")
             )
         )
 

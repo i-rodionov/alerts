@@ -14,7 +14,9 @@ data class NeptunRaionAlert(
     val key: String,
     val name: String,
     val oblast: String = "",
-    val since: String? = null
+    val since: String? = null,
+    val level: String? = null,
+    val reasons: List<String> = emptyList()
 )
 
 @Serializable
@@ -22,7 +24,9 @@ data class NeptunOblastAlert(
     val key: String,
     val name: String,
     val oblast: String = "",
-    val since: String? = null
+    val since: String? = null,
+    val level: String? = null,
+    val reasons: List<String> = emptyList()
 )
 
 @Serializable

@@ -374,16 +374,17 @@ object DefaultRegions {
         districtId: String?,
         districtName: String?
     ): AlertStatus {
-        var isAlarm = false
-        var sinceTime: String? = null
-
         val region = findRegion(regionId)
         val district = districtId?.let { findDistrict(it) }
         val neptunRegionKey = region?.neptunKey
         val neptunDistrictKey = district?.neptunKey
 
+        // Workaround for API bug: entries without a non-blank "level" are NOT active alerts
+        val activeOblasts = alerts.oblasts.filter { !it.level.isNullOrBlank() }
+        val activeRaions = alerts.raions.filter { !it.level.isNullOrBlank() }
+
         // 1. Check if entire oblast has an active alert
-        val matchingOblast = alerts.oblasts.firstOrNull { oblast ->
+        val matchingOblast = activeOblasts.firstOrNull { oblast ->
             oblast.key == regionId ||
             (neptunRegionKey != null && oblast.key.equals(neptunRegionKey, ignoreCase = true)) ||
             oblast.name.equals(regionName, ignoreCase = true) ||
@@ -391,12 +392,14 @@ object DefaultRegions {
             regionName.contains(oblast.key, ignoreCase = true)
         }
 
-        if (matchingOblast != null) {
-            isAlarm = true
-            sinceTime = matchingOblast.since
-        } else if (districtId != null) {
-            // 2. Specific district selected, check if this district has an alert
-            val matchingRaion = alerts.raions.firstOrNull { raion ->
+        var isAlarm = false
+        var sinceTime: String? = null
+        var alertLevel: String? = null
+        val alertReasons = mutableListOf<String>()
+
+        if (districtId != null) {
+            // 2. Specific district selected
+            val matchingRaion = activeRaions.firstOrNull { raion ->
                 val keyMatches = (neptunDistrictKey != null && raion.key.equals(neptunDistrictKey, ignoreCase = true)) ||
                                  raion.key == districtId
 
@@ -415,22 +418,34 @@ object DefaultRegions {
                 keyMatches || nameMatches
             }
 
-            if (matchingRaion != null) {
+            if (matchingRaion != null || matchingOblast != null) {
                 isAlarm = true
-                sinceTime = matchingRaion.since
+                val isRed = matchingRaion?.level.equals("red", ignoreCase = true) ||
+                            matchingOblast?.level.equals("red", ignoreCase = true)
+                alertLevel = if (isRed) "red" else "yellow"
+                sinceTime = matchingRaion?.since ?: matchingOblast?.since
+
+                matchingRaion?.reasons?.let { alertReasons.addAll(it) }
+                matchingOblast?.reasons?.let { alertReasons.addAll(it) }
             }
         } else {
-            // 3. Entire oblast selected, check if any raion in this oblast has an alert
-            val matchingRaion = alerts.raions.firstOrNull { raion ->
+            // 3. Entire oblast selected
+            val matchingRaions = activeRaions.filter { raion ->
                 raion.key.startsWith("$regionId:") ||
                 (neptunRegionKey != null && raion.key.startsWith("$neptunRegionKey:")) ||
                 raion.oblast.contains(regionName, ignoreCase = true) ||
                 regionName.contains(raion.oblast, ignoreCase = true)
             }
 
-            if (matchingRaion != null) {
+            if (matchingOblast != null || matchingRaions.isNotEmpty()) {
                 isAlarm = true
-                sinceTime = matchingRaion.since
+                val isRed = matchingOblast?.level.equals("red", ignoreCase = true) ||
+                            matchingRaions.any { it.level.equals("red", ignoreCase = true) }
+                alertLevel = if (isRed) "red" else "yellow"
+                sinceTime = matchingOblast?.since ?: matchingRaions.firstOrNull()?.since
+
+                matchingOblast?.reasons?.let { alertReasons.addAll(it) }
+                matchingRaions.forEach { alertReasons.addAll(it.reasons) }
             }
         }
 
@@ -441,7 +456,9 @@ object DefaultRegions {
             districtKey = districtId,
             districtName = districtName,
             since = sinceTime,
-            updatedAt = System.currentTimeMillis()
+            updatedAt = System.currentTimeMillis(),
+            level = alertLevel,
+            reasons = alertReasons.distinct()
         )
     }
 }

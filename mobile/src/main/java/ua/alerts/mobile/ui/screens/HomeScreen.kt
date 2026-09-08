@@ -51,10 +51,13 @@ import androidx.compose.ui.unit.sp
 import ua.alerts.mobile.R
 import ua.alerts.mobile.data.ConnectionStatus
 import ua.alerts.mobile.ui.MainUiState
+import androidx.compose.ui.text.style.TextAlign
 import ua.alerts.mobile.ui.theme.DangerRed
 import ua.alerts.mobile.ui.theme.DangerRedLight
 import ua.alerts.mobile.ui.theme.SafeGreen
 import ua.alerts.mobile.ui.theme.SafeGreenLight
+import ua.alerts.mobile.ui.theme.WarningYellow
+import ua.alerts.mobile.ui.theme.WarningYellowLight
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,8 +79,21 @@ fun HomeScreen(
     val status = uiState.status
     val isAlarm = status.isAlarm
 
-    val bannerBg = if (isAlarm) DangerRedLight else SafeGreenLight
-    val primaryColor = if (isAlarm) DangerRed else SafeGreen
+    val bannerBg = when {
+        status.isYellow -> WarningYellowLight
+        status.isRed -> DangerRedLight
+        else -> SafeGreenLight
+    }
+    val primaryColor = when {
+        status.isYellow -> WarningYellow
+        status.isRed -> DangerRed
+        else -> SafeGreen
+    }
+    val statusText = when {
+        status.isYellow -> stringResource(R.string.status_alarm_yellow)
+        status.isRed -> stringResource(R.string.status_alarm_red)
+        else -> stringResource(R.string.status_clear)
+    }
 
     Scaffold(
         topBar = {
@@ -147,10 +163,11 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = if (isAlarm) stringResource(R.string.status_alarm) else stringResource(R.string.status_clear),
+                        text = statusText,
                         color = primaryColor,
                         fontWeight = FontWeight.Black,
-                        fontSize = 22.sp
+                        fontSize = 20.sp,
+                        textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -161,6 +178,19 @@ fun HomeScreen(
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
+
+                    if (isAlarm && status.reasons.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        status.reasons.forEach { reason ->
+                            Text(
+                                text = reason,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = primaryColor,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
 
                     if (!status.since.isNullOrEmpty() && isAlarm) {
                         Spacer(modifier = Modifier.height(4.dp))

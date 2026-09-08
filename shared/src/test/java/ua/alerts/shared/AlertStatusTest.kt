@@ -45,12 +45,17 @@ class AlertStatusTest {
             updatedAt = System.currentTimeMillis()
         )
 
-        val serialized = json.encodeToString(AlertStatus.serializer(), status)
+        val statusWithLevel = status.copy(level = "yellow", reasons = listOf("Дронова загроза"))
+        val serialized = json.encodeToString(AlertStatus.serializer(), statusWithLevel)
         val deserialized = json.decodeFromString<AlertStatus>(serialized)
 
-        assertEquals(status.isAlarm, deserialized.isAlarm)
-        assertEquals(status.regionKey, deserialized.regionKey)
-        assertEquals(status.districtKey, deserialized.districtKey)
+        assertEquals(statusWithLevel.isAlarm, deserialized.isAlarm)
+        assertEquals(statusWithLevel.regionKey, deserialized.regionKey)
+        assertEquals(statusWithLevel.districtKey, deserialized.districtKey)
+        assertEquals("yellow", deserialized.level)
+        assertTrue(deserialized.isYellow)
+        assertFalse(deserialized.isRed)
+        assertEquals(listOf("Дронова загроза"), deserialized.reasons)
         assertEquals("Одеський район", deserialized.displayName)
         assertFalse(deserialized.isStale())
     }
@@ -104,19 +109,22 @@ class AlertStatusTest {
     fun testComputeAlertStatus_realNeptunResponse() {
         val realJson = """
         {
+            "version": 1788864689,
+            "updatedAt": "2026-09-08T10:51:29.718748973Z",
             "raions": [
-                { "key": "дніпровський", "name": "Дніпровський район", "oblast": "Дніпропетровська область", "since": "2026-09-06T22:26:00.000Z" },
-                { "key": "новомосковський", "name": "Самарівський район", "oblast": "Дніпропетровська область", "since": "2026-09-06T22:26:00.000Z" }
+                { "key": "дніпровський", "name": "Дніпровський район", "oblast": "Дніпропетровська область", "since": "2026-09-06T22:26:00.000Z", "level": "yellow", "reasons": ["Дронова загроза (жовтий рівень)"] },
+                { "key": "новомосковський", "name": "Самарівський район", "oblast": "Дніпропетровська область", "since": "2026-09-06T22:26:00.000Z", "level": "red", "reasons": ["Ракетна загроза (червоний рівень)"] },
+                { "key": "криворізький", "name": "Криворізький район", "oblast": "Дніпропетровська область", "since": "2026-09-06T20:00:00.000Z" }
             ],
             "oblasts": [
-                { "key": "луганська", "name": "Луганська область", "oblast": "Луганська область", "since": "2022-04-04T16:45:00.000Z" }
+                { "key": "луганська", "name": "Луганська область", "oblast": "Луганська область", "since": "2022-04-04T16:45:00.000Z", "level": "red" }
             ]
         }
         """.trimIndent()
 
         val response = json.decodeFromString<NeptunAlertsResponse>(realJson)
 
-        // 1. Specific district WITH active alert (Dniprovskyi)
+        // 1. Specific district WITH active yellow alert (Dniprovskyi)
         val statusDnipro = DefaultRegions.computeAlertStatus(
             alerts = response,
             regionId = "dnipropetrovska",
@@ -125,9 +133,13 @@ class AlertStatusTest {
             districtName = "Дніпровський район"
         )
         assertTrue("Dniprovskyi district must be in alarm", statusDnipro.isAlarm)
+        assertTrue("Dniprovskyi district must have isYellow = true", statusDnipro.isYellow)
+        assertFalse("Dniprovskyi district must not be isRed", statusDnipro.isRed)
+        assertEquals("yellow", statusDnipro.level)
+        assertEquals(listOf("Дронова загроза (жовтий рівень)"), statusDnipro.reasons)
         assertEquals("2026-09-06T22:26:00.000Z", statusDnipro.since)
 
-        // 2. Renamed district WITH active alert (Novomoskovskyi / Samarivskyi)
+        // 2. Renamed district WITH active red alert (Novomoskovskyi / Samarivskyi)
         val statusNovomoskovsk = DefaultRegions.computeAlertStatus(
             alerts = response,
             regionId = "dnipropetrovska",
@@ -136,8 +148,10 @@ class AlertStatusTest {
             districtName = "Новомосковський район"
         )
         assertTrue("Novomoskovskyi/Samarivskyi district must be in alarm", statusNovomoskovsk.isAlarm)
+        assertTrue("Novomoskovskyi/Samarivskyi district must be red", statusNovomoskovsk.isRed)
+        assertEquals("red", statusNovomoskovsk.level)
 
-        // 3. District WITHOUT active alert in the same oblast (Kryvorizkyi)
+        // 3. District present in response but WITHOUT level field (API bug workaround -> Kryvorizkyi)
         val statusKryvyiRih = DefaultRegions.computeAlertStatus(
             alerts = response,
             regionId = "dnipropetrovska",
@@ -145,9 +159,11 @@ class AlertStatusTest {
             districtId = "dnipropetrovska:kryvorizkyi",
             districtName = "Криворізький район"
         )
-        assertFalse("Kryvorizkyi district must NOT be in alarm", statusKryvyiRih.isAlarm)
+        assertFalse("Kryvorizkyi district without level must NOT be in alarm (workaround)", statusKryvyiRih.isAlarm)
+        assertFalse(statusKryvyiRih.isYellow)
+        assertFalse(statusKryvyiRih.isRed)
 
-        // 4. Entire Dnipropetrovsk oblast selected (should be alarm because raions inside are in alarm)
+        // 4. Entire Dnipropetrovsk oblast selected (one yellow, one red raion -> oblast resolves to RED)
         val statusWholeOblast = DefaultRegions.computeAlertStatus(
             alerts = response,
             regionId = "dnipropetrovska",
@@ -155,9 +171,11 @@ class AlertStatusTest {
             districtId = null,
             districtName = null
         )
-        assertTrue("Whole oblast must show alarm when raions have active alarm", statusWholeOblast.isAlarm)
+        assertTrue("Whole oblast must show alarm", statusWholeOblast.isAlarm)
+        assertTrue("Whole oblast must resolve to RED if any raion is RED", statusWholeOblast.isRed)
+        assertEquals("red", statusWholeOblast.level)
 
-        // 5. Whole Luhansk oblast is in alarm -> district in Luhansk must ALSO show alarm
+        // 5. Whole Luhansk oblast is in red alarm -> district in Luhansk must ALSO show red alarm
         val statusLuhanskDistrict = DefaultRegions.computeAlertStatus(
             alerts = response,
             regionId = "luhanska",
@@ -166,6 +184,8 @@ class AlertStatusTest {
             districtName = "Луганський район"
         )
         assertTrue("District in an oblast with whole-oblast alert must be in alarm", statusLuhanskDistrict.isAlarm)
+        assertTrue(statusLuhanskDistrict.isRed)
+        assertEquals("red", statusLuhanskDistrict.level)
 
         // 6. Calm oblast (Kyivska) -> must be All Clear
         val statusKyivDistrict = DefaultRegions.computeAlertStatus(

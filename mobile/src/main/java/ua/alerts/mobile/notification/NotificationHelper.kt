@@ -40,10 +40,10 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = if (status.isAlarm) {
-            context.getString(R.string.status_alarm) + " ⚠️"
-        } else {
-            context.getString(R.string.status_clear) + " 🟢"
+        val title = when {
+            status.isYellow -> context.getString(R.string.status_alarm_yellow) + " 🟡"
+            status.isRed -> context.getString(R.string.status_alarm_red) + " 🔴"
+            else -> context.getString(R.string.status_clear) + " 🟢"
         }
 
         val connText = when (connectionStatus) {
@@ -84,14 +84,15 @@ class NotificationHelper(private val context: Context) {
         )
 
         val channelId = if (status.isAlarm) AlertApp.CHANNEL_ALERTS_ID else AlertApp.CHANNEL_CLEAR_ID
-        val title = if (status.isAlarm) {
-            "?? " + context.getString(R.string.status_alarm)
-        } else {
-            "?? " + context.getString(R.string.status_clear)
+        val title = when {
+            status.isYellow -> "🟡 " + context.getString(R.string.status_alarm_yellow)
+            status.isRed -> "🔴 " + context.getString(R.string.status_alarm_red)
+            else -> "🟢 " + context.getString(R.string.status_clear)
         }
 
+        val reasonSuffix = if (status.isAlarm && status.reasons.isNotEmpty()) " (${status.reasons.joinToString(", ")})" else ""
         val message = "${status.displayName}: ${
-            if (status.isAlarm) "Оголошено повітряну тривогу!" else "Відбій загрози."
+            if (status.isAlarm) "Оголошено повітряну тривогу!$reasonSuffix" else "Відбій загрози."
         }"
 
         val builder = NotificationCompat.Builder(context, channelId)

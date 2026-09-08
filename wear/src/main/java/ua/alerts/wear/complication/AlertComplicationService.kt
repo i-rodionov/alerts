@@ -72,13 +72,15 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             ComplicationType.SHORT_TEXT -> {
                 val textStr = when {
                     isOffline -> "—"
-                    isAlarm -> "ТРВ"
-                    else -> "ОК"
+                    status?.isYellow == true -> "🟡"
+                    status?.isRed == true -> "🔴"
+                    else -> "🟢"
                 }
                 val titleStr = when {
-                    isOffline -> "?"
-                    isAlarm -> "??"
-                    else -> "??"
+                    isOffline -> "⚠️"
+                    status?.isYellow == true -> "ЖОВ"
+                    status?.isRed == true -> "ТРВ"
+                    else -> "ОК"
                 }
                 val text = PlainComplicationText.Builder(textStr).build()
                 val title = PlainComplicationText.Builder(titleStr).build()
@@ -92,8 +94,9 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             ComplicationType.LONG_TEXT -> {
                 val headerStr = when {
                     isOffline -> getString(R.string.status_offline)
-                    isAlarm -> "?? " + getString(R.string.status_alarm)
-                    else -> "?? " + getString(R.string.status_clear)
+                    status?.isYellow == true -> "🟡 " + (status.reasons.firstOrNull() ?: getString(R.string.status_alarm_yellow))
+                    status?.isRed == true -> "🔴 " + (status.reasons.firstOrNull() ?: getString(R.string.status_alarm_red))
+                    else -> "🟢 " + getString(R.string.status_clear)
                 }
                 val text = PlainComplicationText.Builder(headerStr).build()
                 val title = PlainComplicationText.Builder(regionName).build()

@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import kotlinx.serialization.json.decodeFromJsonElement
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -60,5 +61,34 @@ class NeptunClientTest {
         client.stop()
         assertFalse(client.isRunning)
         assertEquals(ConnectionStatus.STOPPED, client.connectionStatus.value)
+    }
+
+    @Test
+    fun testDecodeWsEnvelopes() {
+        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
+        val alertsEnvelope = """{"type":"alerts","data":{"raions":[{"key":"київський","name":"Київський район","level":"yellow","reasons":["Дронова загроза"]}],"oblasts":[]}}"""
+        val env1 = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(alertsEnvelope)
+        assertEquals("alerts", env1.type)
+        val alertsData = json.decodeFromJsonElement<ua.alerts.shared.model.NeptunAlertsResponse>(env1.data!!)
+        assertEquals(1, alertsData.raions.size)
+        assertEquals("yellow", alertsData.raions[0].level)
+        assertEquals(listOf("Дронова загроза"), alertsData.raions[0].reasons)
+
+        val snapshotEnvelope = """{"type":"snapshot","data":{"threats":[{"id":"t1","type":"shahed"}]}}"""
+        val env2 = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(snapshotEnvelope)
+        assertEquals("snapshot", env2.type)
+
+        val upsertEnvelope = """{"type":"upsert","data":{"id":"t1","speed":180}}"""
+        val env3 = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(upsertEnvelope)
+        assertEquals("upsert", env3.type)
+
+        val removeEnvelope = """{"type":"remove","data":{"id":"t1"}}"""
+        val env4 = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(removeEnvelope)
+        assertEquals("remove", env4.type)
+
+        val heartbeatEnvelope = """{"type":"heartbeat"}"""
+        val env5 = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(heartbeatEnvelope)
+        assertEquals("heartbeat", env5.type)
     }
 }

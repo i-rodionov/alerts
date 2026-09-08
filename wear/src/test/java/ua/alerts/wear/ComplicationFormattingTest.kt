@@ -7,9 +7,11 @@ import ua.alerts.shared.model.AlertStatus
 class ComplicationFormattingTest {
 
     @Test
-    fun testComplicationTextWhenAlarm() {
+    fun testComplicationTextWhenYellowAlarm() {
         val status = AlertStatus(
             isAlarm = true,
+            level = "yellow",
+            reasons = listOf("Дронова загроза"),
             regionKey = "kyivska",
             regionName = "Київська область",
             districtKey = "kyivska:boryspilskyi",
@@ -20,18 +22,51 @@ class ComplicationFormattingTest {
         val isOffline = status.isStale()
         val textStr = when {
             isOffline -> "—"
-            status.isAlarm -> "ТРВ"
-            else -> "ОК"
+            status.isYellow -> "🟡"
+            status.isRed -> "🔴"
+            else -> "🟢"
         }
         val titleStr = when {
-            isOffline -> "?"
-            status.isAlarm -> "??"
-            else -> "??"
+            isOffline -> "⚠️"
+            status.isYellow -> "ЖОВ"
+            status.isRed -> "ТРВ"
+            else -> "ОК"
         }
 
-        assertEquals("ТРВ", textStr)
-        assertEquals("??", titleStr)
+        assertEquals("🟡", textStr)
+        assertEquals("ЖОВ", titleStr)
         assertEquals("Бориспільський район", status.displayName)
+    }
+
+    @Test
+    fun testComplicationTextWhenRedAlarm() {
+        val status = AlertStatus(
+            isAlarm = true,
+            level = "red",
+            reasons = listOf("Ракетна загроза"),
+            regionKey = "kyivska",
+            regionName = "Київська область",
+            districtKey = "kyivska:boryspilskyi",
+            districtName = "Бориспільський район",
+            updatedAt = System.currentTimeMillis()
+        )
+
+        val isOffline = status.isStale()
+        val textStr = when {
+            isOffline -> "—"
+            status.isYellow -> "🟡"
+            status.isRed -> "🔴"
+            else -> "🟢"
+        }
+        val titleStr = when {
+            isOffline -> "⚠️"
+            status.isYellow -> "ЖОВ"
+            status.isRed -> "ТРВ"
+            else -> "ОК"
+        }
+
+        assertEquals("🔴", textStr)
+        assertEquals("ТРВ", titleStr)
     }
 
     @Test
@@ -46,17 +81,19 @@ class ComplicationFormattingTest {
         val isOffline = status.isStale()
         val textStr = when {
             isOffline -> "—"
-            status.isAlarm -> "ТРВ"
-            else -> "ОК"
+            status.isYellow -> "🟡"
+            status.isRed -> "🔴"
+            else -> "🟢"
         }
         val titleStr = when {
-            isOffline -> "?"
-            status.isAlarm -> "??"
-            else -> "??"
+            isOffline -> "⚠️"
+            status.isYellow -> "ЖОВ"
+            status.isRed -> "ТРВ"
+            else -> "ОК"
         }
 
-        assertEquals("ОК", textStr)
-        assertEquals("??", titleStr)
+        assertEquals("🟢", textStr)
+        assertEquals("ОК", titleStr)
         assertEquals("Київська область", status.displayName)
     }
 
@@ -64,6 +101,7 @@ class ComplicationFormattingTest {
     fun testComplicationTextWhenStale() {
         val status = AlertStatus(
             isAlarm = true,
+            level = "red",
             regionKey = "odeska",
             regionName = "Одеська область",
             updatedAt = System.currentTimeMillis() - (30 * 60 * 1000L) // 30 minutes ago
@@ -72,16 +110,18 @@ class ComplicationFormattingTest {
         val isOffline = status.isStale()
         val textStr = when {
             isOffline -> "—"
-            status.isAlarm -> "ТРВ"
-            else -> "ОК"
+            status.isYellow -> "🟡"
+            status.isRed -> "🔴"
+            else -> "🟢"
         }
         val titleStr = when {
-            isOffline -> "?"
-            status.isAlarm -> "??"
-            else -> "??"
+            isOffline -> "⚠️"
+            status.isYellow -> "ЖОВ"
+            status.isRed -> "ТРВ"
+            else -> "ОК"
         }
 
         assertEquals("—", textStr)
-        assertEquals("?", titleStr)
+        assertEquals("⚠️", titleStr)
     }
 }

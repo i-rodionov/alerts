@@ -68,6 +68,7 @@ class AlertForegroundService : Service() {
     private var watchCountJob: Job? = null
     private var hasInitialized = false
     private var lastAlarmState: Boolean? = null
+    private var lastAlarmLevel: String? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -186,8 +187,8 @@ class AlertForegroundService : Service() {
                 computeAlertStatus(alerts, regId, regName, distId, distName)
             }.collect { newStatus ->
                 val prevAlarm = lastAlarmState
+                val prevLevel = lastAlarmLevel
                 AlertRepository.setAlertStatus(newStatus)
-                lastAlarmState = newStatus.isAlarm
 
                 // Update ongoing service notification
                 val notification = notificationHelper.buildServiceNotification(
@@ -200,8 +201,13 @@ class AlertForegroundService : Service() {
                 // Sync status with Galaxy Watch
                 wearSyncManager.syncAlertStatus(newStatus)
 
-                // Trigger sound/vibration only on state transition and after initial state load to prevent duplicate alarms
-                if (hasInitialized && prevAlarm != null && prevAlarm != newStatus.isAlarm) {
+                // Trigger sound/vibration on state transition or level escalation (Yellow -> Red)
+                val isEscalation = prevAlarm == true && newStatus.isAlarm &&
+                        prevLevel.equals("yellow", ignoreCase = true) &&
+                        newStatus.isRed
+                val isStateTransition = prevAlarm != null && prevAlarm != newStatus.isAlarm
+
+                if (hasInitialized && (isStateTransition || isEscalation)) {
                     val soundAlarm = settingsRepo.soundOnAlarm.first()
                     val vibrateAlarm = settingsRepo.vibrateOnAlarm.first()
                     val soundClear = settingsRepo.soundOnClear.first()
@@ -213,6 +219,8 @@ class AlertForegroundService : Service() {
                     notificationHelper.notifyAlarmTransition(newStatus, sound, vibrate)
                 }
 
+                lastAlarmState = newStatus.isAlarm
+                lastAlarmLevel = newStatus.level
                 hasInitialized = true
             }
         }

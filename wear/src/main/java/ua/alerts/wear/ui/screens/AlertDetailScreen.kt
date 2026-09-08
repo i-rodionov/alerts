@@ -50,13 +50,15 @@ fun AlertDetailScreen(
 
     val statusColor = when {
         isOffline -> WearWarningYellow
-        isAlarm -> WearDangerRed
+        status.isYellow -> WearWarningYellow
+        status.isRed -> WearDangerRed
         else -> WearSafeGreen
     }
 
     val statusTitle = when {
         isOffline -> stringResource(R.string.status_offline)
-        isAlarm -> stringResource(R.string.status_alarm)
+        status.isYellow -> stringResource(R.string.status_alarm_yellow)
+        status.isRed -> stringResource(R.string.status_alarm_red)
         else -> stringResource(R.string.status_clear)
     }
 
@@ -116,6 +118,17 @@ fun AlertDetailScreen(
                 textAlign = TextAlign.Center,
                 color = Color.White
             )
+        }
+
+        if (isAlarm && status.reasons.isNotEmpty()) {
+            item {
+                Text(
+                    text = status.reasons.joinToString("\n"),
+                    fontSize = 11.sp,
+                    color = statusColor,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
 
         if (isAlarm && !status.since.isNullOrEmpty()) {

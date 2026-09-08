@@ -15,6 +15,8 @@ val SafeGreen = Color(0xFF2E7D32)
 val SafeGreenLight = Color(0xFFE8F5E9)
 val DangerRed = Color(0xFFC62828)
 val DangerRedLight = Color(0xFFFFEBEE)
+val WarningYellow = Color(0xFFF57F17)
+val WarningYellowLight = Color(0xFFFFF8E1)
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF90CAF9),

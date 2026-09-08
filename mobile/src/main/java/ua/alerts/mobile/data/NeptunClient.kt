@@ -21,6 +21,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import android.util.Log
 import ua.alerts.shared.model.NeptunAlertsResponse
 import ua.alerts.shared.model.NeptunWsEnvelope
 import java.util.concurrent.TimeUnit
@@ -42,6 +43,7 @@ class NeptunClient(
         .build()
 ) {
     companion object {
+        const val TAG = "NeptunWs"
         const val WS_URL = "wss://neptun.in.ua/api/v1/stream"
         const val REST_ALERTS_URL = "https://neptun.in.ua/api/v1/alerts"
         const val INITIAL_RECONNECT_DELAY_MS = 2000L
@@ -123,6 +125,7 @@ class NeptunClient(
                     webSocket.close(1000, "Client stopped")
                     return
                 }
+                Log.i(TAG, "WebSocket connected successfully to $WS_URL")
                 reconnectAttempts = 0
                 reconnectJob?.cancel()
                 reconnectJob = null
@@ -135,28 +138,38 @@ class NeptunClient(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 if (!isStarted) return
+                Log.d(TAG, "Incoming WS frame: $text")
                 try {
                     val envelope = json.decodeFromString<NeptunWsEnvelope>(text)
+                    Log.d(TAG, "Parsed WS envelope: type='${envelope.type}', ts=${envelope.ts}")
                     when (envelope.type) {
                         "alerts" -> {
                             envelope.data?.let { element ->
+                                Log.i(TAG, "Processing WS 'alerts' payload: $element")
                                 val alerts = json.decodeFromJsonElement<NeptunAlertsResponse>(element)
                                 scope.launch {
                                     _alertsFlow.emit(alerts)
                                 }
-                            }
+                            } ?: Log.w(TAG, "WS 'alerts' envelope received with null data")
                         }
                         "snapshot" -> {
-                            scope.launch {
-                                fetchAlertsSnapshot()
-                            }
+                            Log.i(TAG, "Received WS 'snapshot' event (threat tracks state): ${envelope.data}")
+                        }
+                        "upsert" -> {
+                            Log.d(TAG, "Received WS 'upsert' event (threat track updated): ${envelope.data}")
+                        }
+                        "remove" -> {
+                            Log.d(TAG, "Received WS 'remove' event (threat track removed): ${envelope.data}")
                         }
                         "heartbeat" -> {
-                            // Heartbeat received
+                            Log.d(TAG, "Received WS 'heartbeat'")
+                        }
+                        else -> {
+                            Log.w(TAG, "Unrecognized WS envelope type '${envelope.type}': ${envelope.data}")
                         }
                     }
-                } catch (_: Exception) {
-                    // Ignored or unrecognized frame
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error decoding or handling WS frame: ${e.message}", e)
                 }
             }
 
@@ -165,6 +178,7 @@ class NeptunClient(
                 if (this@NeptunClient.webSocket === webSocket) {
                     this@NeptunClient.webSocket = null
                 }
+                Log.e(TAG, "WebSocket failure: ${t.localizedMessage}", t)
                 _lastError.value = t.localizedMessage ?: "Connection failure"
                 _connectionStatus.value = ConnectionStatus.ERROR
                 scheduleReconnect()
@@ -175,6 +189,7 @@ class NeptunClient(
                 if (this@NeptunClient.webSocket === webSocket) {
                     this@NeptunClient.webSocket = null
                 }
+                Log.i(TAG, "WebSocket closed (code=$code, reason='$reason')")
                 if (code != 1000) {
                     _connectionStatus.value = ConnectionStatus.RECONNECTING
                     scheduleReconnect()
@@ -188,6 +203,7 @@ class NeptunClient(
         if (reconnectJob?.isActive == true) return
 
         val delayMs = calculateBackoffDelayMs(reconnectAttempts++)
+        Log.i(TAG, "Scheduling reconnect attempt in ${delayMs}ms (attempt=$reconnectAttempts)")
         _connectionStatus.value = ConnectionStatus.RECONNECTING
 
         reconnectJob = scope.launch {
@@ -204,20 +220,27 @@ class NeptunClient(
 
     suspend fun fetchAlertsSnapshot(): Result<NeptunAlertsResponse> = withContext(Dispatchers.IO) {
         try {
+            Log.d(TAG, "Fetching alerts snapshot from REST: $REST_ALERTS_URL")
             val request = Request.Builder()
                 .url(REST_ALERTS_URL)
                 .build()
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
+                    Log.e(TAG, "REST alerts snapshot request failed: HTTP ${response.code}")
                     return@withContext Result.failure(Exception("HTTP error: ${response.code}"))
                 }
-                val body = response.body?.string() ?: return@withContext Result.failure(Exception("Empty body"))
+                val body = response.body?.string() ?: run {
+                    Log.e(TAG, "REST alerts snapshot response body is null")
+                    return@withContext Result.failure(Exception("Empty body"))
+                }
+                Log.d(TAG, "REST alerts snapshot received: $body")
                 val alerts = json.decodeFromString<NeptunAlertsResponse>(body)
                 _alertsFlow.emit(alerts)
                 Result.success(alerts)
             }
         } catch (e: Exception) {
+            Log.e(TAG, "REST alerts snapshot exception: ${e.message}", e)
             Result.failure(e)
         }
     }
