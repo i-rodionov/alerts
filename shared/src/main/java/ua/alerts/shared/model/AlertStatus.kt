@@ -33,9 +33,11 @@ data class AlertStatus(
     fun getLocalizedDisplayName(language: String): String =
         DefaultRegions.getDisplayName(regionKey, districtKey, language, displayName)
 
+    @Suppress("unused")
     fun getLocalizedRegionName(language: String): String =
         DefaultRegions.getRegionName(regionKey, language, regionName)
 
+    @Suppress("unused")
     fun getLocalizedDistrictName(language: String): String? =
         districtKey?.let { DefaultRegions.getDistrictName(it, language, districtName ?: "") }
 }

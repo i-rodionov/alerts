@@ -10,6 +10,7 @@ data class Region(
     val neptunKey: String? = null,
     val raions: List<District> = emptyList()
 ) {
+    @Suppress("unused")
     fun getLocalizedName(language: String): String =
         if (language.startsWith("en", ignoreCase = true)) nameEn else nameUk
 }
@@ -22,6 +23,7 @@ data class District(
     val oblastId: String,
     val neptunKey: String? = null
 ) {
+    @Suppress("unused")
     fun getLocalizedName(language: String): String =
         if (language.startsWith("en", ignoreCase = true)) nameEn else nameUk
 }

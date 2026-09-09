@@ -13,7 +13,6 @@ import java.util.Locale
 class EventTimeFormatterTest {
 
     private val kyivZone = ZoneId.of("Europe/Kyiv")
-    private val utcZone = ZoneId.of("UTC")
     private val newYorkZone = ZoneId.of("America/New_York")
 
     @Test

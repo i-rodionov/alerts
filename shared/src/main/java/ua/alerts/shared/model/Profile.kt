@@ -26,9 +26,11 @@ data class Profile(
     fun getLocalizedDisplayName(language: String): String =
         DefaultRegions.getDisplayName(regionId, districtId, language, displayName)
 
+    @Suppress("unused")
     fun getLocalizedRegionName(language: String): String =
         DefaultRegions.getRegionName(regionId, language, regionName)
 
+    @Suppress("unused")
     fun getLocalizedDistrictName(language: String): String? =
         districtId?.let { DefaultRegions.getDistrictName(it, language, districtName ?: "") }
 }
