@@ -14,9 +14,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Notifications
+import android.content.Context
+import android.media.RingtoneManager
+import android.net.Uri
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,6 +62,8 @@ fun ProfileConfigScreen(
     onSaveNewProfile: () -> Unit,
     onDeleteProfile: (String) -> Unit,
     onOpenRegionPicker: () -> Unit,
+    onPickAlertSound: () -> Unit = {},
+    onPickClearSound: () -> Unit = {},
     onBack: () -> Unit
 ) {
     if (profile == null) return
@@ -74,7 +82,7 @@ fun ProfileConfigScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад"
                         )
                     }
@@ -215,6 +223,14 @@ fun ProfileConfigScreen(
                         }
                     )
 
+                    if (profile.soundOnAlarm) {
+                        ProfileSoundSelector(
+                            label = stringResource(R.string.notification_sound_alert),
+                            soundUri = profile.alertSoundUri,
+                            onClick = onPickAlertSound
+                        )
+                    }
+
                     ProfileSettingToggle(
                         label = stringResource(R.string.vibrate_on_alarm),
                         checked = profile.vibrateOnAlarm,
@@ -230,6 +246,14 @@ fun ProfileConfigScreen(
                             onUpdateProfile { it.copy(soundOnClear = checked) }
                         }
                     )
+
+                    if (profile.soundOnClear) {
+                        ProfileSoundSelector(
+                            label = stringResource(R.string.notification_sound_clear),
+                            soundUri = profile.clearSoundUri,
+                            onClick = onPickClearSound
+                        )
+                    }
 
                     ProfileSettingToggle(
                         label = stringResource(R.string.vibrate_on_clear),
@@ -310,5 +334,58 @@ fun ProfileSettingToggle(
             modifier = Modifier.weight(1f)
         )
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+@Composable
+fun ProfileSoundSelector(
+    label: String,
+    soundUri: String?,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val soundTitle = remember(soundUri) {
+        resolveRingtoneTitle(context, soundUri)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = soundTitle,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.Notifications,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+fun resolveRingtoneTitle(context: Context, uriString: String?): String {
+    if (uriString.isNullOrBlank()) {
+        return context.getString(R.string.sound_system_default)
+    }
+    return try {
+        val uri = Uri.parse(uriString)
+        val ringtone = RingtoneManager.getRingtone(context, uri)
+        ringtone?.getTitle(context) ?: context.getString(R.string.sound_system_default)
+    } catch (_: Exception) {
+        context.getString(R.string.sound_system_default)
     }
 }

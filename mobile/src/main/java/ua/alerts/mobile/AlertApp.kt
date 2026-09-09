@@ -35,12 +35,11 @@ class AlertApp : Application() {
                 setShowBadge(false)
             }
 
-            // High priority Alarm Channel (Sound + Vibrate)
-            val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            // High priority Alert Channel (Notification Category Sound)
+            val defaultNotificationSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             val audioAttributes = AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                 .build()
 
             val alertChannel = NotificationChannel(
@@ -50,8 +49,8 @@ class AlertApp : Application() {
             ).apply {
                 description = "Сповіщення про початок повітряної тривоги"
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 800, 200, 800, 200, 800)
-                setSound(alarmSound, audioAttributes)
+                vibrationPattern = longArrayOf(0, 600, 200, 600, 200, 800)
+                setSound(defaultNotificationSound, audioAttributes)
             }
 
             // All clear Channel

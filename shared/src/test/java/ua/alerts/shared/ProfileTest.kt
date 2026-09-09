@@ -26,6 +26,8 @@ class ProfileTest {
         assertTrue(profile.vibrateOnAlarm)
         assertTrue(profile.soundOnClear)
         assertTrue(profile.vibrateOnClear)
+        assertEquals(null, profile.alertSoundUri)
+        assertEquals(null, profile.clearSoundUri)
         assertEquals("", profile.displayName)
     }
 
@@ -75,5 +77,22 @@ class ProfileTest {
         assertFalse(p.soundOnClear)
         assertTrue(p.vibrateOnClear)
         assertEquals("Білоцерківський район", p.displayName)
+        assertEquals(null, p.alertSoundUri)
+        assertEquals(null, p.clearSoundUri)
+    }
+
+    @Test
+    fun testProfileWithCustomSoundsSerialization() {
+        val profile = Profile(
+            id = "custom-sounds-profile",
+            regionName = "Полтавська область",
+            alertSoundUri = "content://media/internal/audio/media/42",
+            clearSoundUri = "content://media/internal/audio/media/99"
+        )
+        val serialized = json.encodeToString(listOf(profile))
+        val deserialized = json.decodeFromString<List<Profile>>(serialized)
+        assertEquals(1, deserialized.size)
+        assertEquals("content://media/internal/audio/media/42", deserialized[0].alertSoundUri)
+        assertEquals("content://media/internal/audio/media/99", deserialized[0].clearSoundUri)
     }
 }

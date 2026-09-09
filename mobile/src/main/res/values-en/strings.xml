@@ -35,4 +35,7 @@
     <string name="status_reconnecting">Reconnecting…</string>
     <string name="status_connection_error">Connection error</string>
     <string name="status_service_stopped">Service stopped</string>
+    <string name="notification_sound_alert">Alert notification sound</string>
+    <string name="notification_sound_clear">All-clear notification sound</string>
+    <string name="sound_system_default">System default</string>
 </resources>

@@ -3,8 +3,12 @@ package ua.alerts.mobile.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import ua.alerts.mobile.R
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +38,57 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { _ ->
         // Permission handled
+    }
+
+    enum class SoundTarget {
+        ALERT,
+        CLEAR
+    }
+
+    private var pendingSoundPickerTarget: SoundTarget? = null
+
+    private val ringtonePickerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val pickedUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+            val uriString = pickedUri?.toString()
+            when (pendingSoundPickerTarget) {
+                SoundTarget.ALERT -> {
+                    viewModel.updateDraft { it.copy(alertSoundUri = uriString) }
+                }
+                SoundTarget.CLEAR -> {
+                    viewModel.updateDraft { it.copy(clearSoundUri = uriString) }
+                }
+                null -> {}
+            }
+        }
+        pendingSoundPickerTarget = null
+    }
+
+    private fun launchSoundPicker(target: SoundTarget, currentUriString: String?) {
+        pendingSoundPickerTarget = target
+        val currentUri = if (!currentUriString.isNullOrBlank()) {
+            try { Uri.parse(currentUriString) } catch (_: Exception) { null }
+        } else {
+            null
+        }
+        val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        val titleRes = if (target == SoundTarget.ALERT) R.string.notification_sound_alert else R.string.notification_sound_clear
+        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, defaultUri)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, currentUri ?: defaultUri)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, getString(titleRes))
+        }
+        ringtonePickerLauncher.launch(intent)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,6 +161,8 @@ class MainActivity : ComponentActivity() {
                                 onSaveNewProfile = { viewModel.saveDraftProfile() },
                                 onDeleteProfile = { id -> viewModel.deleteProfile(id) },
                                 onOpenRegionPicker = { viewModel.navigateTo(Screen.RegionPicker(screen.profileId)) },
+                                onPickAlertSound = { launchSoundPicker(SoundTarget.ALERT, draftProfile?.alertSoundUri) },
+                                onPickClearSound = { launchSoundPicker(SoundTarget.CLEAR, draftProfile?.clearSoundUri) },
                                 onBack = { viewModel.navigateBack() }
                             )
                         }

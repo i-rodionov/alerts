@@ -93,4 +93,67 @@ class AlertServiceLifecycleTest {
         // Profiles remain completely independent
         assertTrue(statusKyiv.isAlarm != statusLviv.isAlarm)
     }
+
+    @Test
+    fun testAlertTransitionEvaluatorLifecycleAndDeduplication() {
+        val notifications = mutableListOf<String>()
+        val profileAlertLevels = mutableMapOf<String, ua.alerts.shared.model.AlertLevel>()
+
+        fun processUpdate(profileId: String, level: ua.alerts.shared.model.AlertLevel) {
+            val prev = profileAlertLevels[profileId]
+            if (prev == null) {
+                // Baseline initialization: NEVER notify
+                profileAlertLevels[profileId] = level
+            } else {
+                if (ua.alerts.shared.model.AlertTransitionEvaluator.shouldNotifyTransition(prev, level)) {
+                    notifications.add("$profileId: $prev -> $level")
+                    profileAlertLevels[profileId] = level
+                }
+            }
+        }
+
+        // 1. App starts up, initial snapshot has RED: baseline initialization, no notification
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.RED)
+        assertTrue(notifications.isEmpty())
+
+        // 2. Repeated server messages with RED: snapshot, alerts, reconnect
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.RED)
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.RED)
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.RED)
+        assertTrue(notifications.isEmpty())
+
+        // 3. De-escalation: RED -> YELLOW produces exactly 1 notification
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.YELLOW)
+        assertEquals(1, notifications.size)
+        assertEquals("profile-kyiv: RED -> YELLOW", notifications.last())
+
+        // 4. Repeated updates with YELLOW: no extra notification
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.YELLOW)
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.YELLOW)
+        assertEquals(1, notifications.size)
+
+        // 5. Escalation: YELLOW -> RED produces exactly 1 notification
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.RED)
+        assertEquals(2, notifications.size)
+        assertEquals("profile-kyiv: YELLOW -> RED", notifications.last())
+
+        // 6. All clear: RED -> NO_ALERT produces exactly 1 notification
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.NO_ALERT)
+        assertEquals(3, notifications.size)
+        assertEquals("profile-kyiv: RED -> NO_ALERT", notifications.last())
+
+        // 7. Repeated calm updates: no notification
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.NO_ALERT)
+        processUpdate("profile-kyiv", ua.alerts.shared.model.AlertLevel.NO_ALERT)
+        assertEquals(3, notifications.size)
+
+        // 8. Newly added profile while active alert in that region: baseline initialized silently
+        processUpdate("profile-kharkiv", ua.alerts.shared.model.AlertLevel.RED)
+        assertEquals(3, notifications.size)
+
+        // 9. Subsequent change in Kharkiv notifies independently
+        processUpdate("profile-kharkiv", ua.alerts.shared.model.AlertLevel.NO_ALERT)
+        assertEquals(4, notifications.size)
+        assertEquals("profile-kharkiv: RED -> NO_ALERT", notifications.last())
+    }
 }

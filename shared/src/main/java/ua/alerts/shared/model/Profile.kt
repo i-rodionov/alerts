@@ -15,7 +15,9 @@ data class Profile(
     val soundOnAlarm: Boolean = true,
     val vibrateOnAlarm: Boolean = true,
     val soundOnClear: Boolean = true,
-    val vibrateOnClear: Boolean = true
+    val vibrateOnClear: Boolean = true,
+    val alertSoundUri: String? = null,
+    val clearSoundUri: String? = null
 ) {
     val displayName: String
         get() = districtName ?: regionName

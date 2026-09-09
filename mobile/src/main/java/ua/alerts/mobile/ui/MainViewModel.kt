@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import ua.alerts.mobile.data.AlertRepository
 import ua.alerts.mobile.data.ConnectionStatus
 import ua.alerts.mobile.data.SettingsRepository
+import ua.alerts.mobile.notification.NotificationHelper
 import ua.alerts.mobile.service.AlertForegroundService
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.Profile
@@ -122,6 +123,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteProfile(profileId: String) {
         viewModelScope.launch {
             settingsRepo.deleteProfile(profileId)
+            NotificationHelper(getApplication()).deleteProfileChannels(profileId)
             navigateBack()
         }
     }

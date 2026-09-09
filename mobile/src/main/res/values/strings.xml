@@ -35,4 +35,7 @@
     <string name="status_reconnecting">Перепідключення…</string>
     <string name="status_connection_error">Помилка з\'єднання</string>
     <string name="status_service_stopped">Службу зупинено</string>
+    <string name="notification_sound_alert">Мелодія тривоги</string>
+    <string name="notification_sound_clear">Мелодія відбою</string>
+    <string name="sound_system_default">Системний за замовчуванням</string>
 </resources>
