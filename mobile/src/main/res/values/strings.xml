@@ -87,4 +87,7 @@
     <string name="notification_alert_started">%1$s: Оголошено повітряну тривогу!%2$s</string>
     <string name="notification_alert_cleared">%s: Відбій повітряної тривоги.</string>
     <string name="data_source_attribution">Дані: Карта повітряних тривог — NEPTUN</string>
+    <string name="neptun_disclaimer_short">NEPTUN — інформаційний агрегатор, а не офіційна система оповіщення. Завжди орієнтуйтеся на офіційні сигнали повітряної тривоги.</string>
+    <string name="settings_about_data_source_title">Джерело даних та застереження</string>
+    <string name="neptun_disclaimer_full">Дані формуються з відкритих і сторонніх джерел та можуть містити неточності або затримки. Застосунок не є офіційною системою оповіщення і не замінює державні сигнали повітряної тривоги цивільного захисту.</string>
 </resources>

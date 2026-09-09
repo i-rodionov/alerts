@@ -1,0 +1,14 @@
+# Release Signing Configuration (Example Template)
+#
+# To configure release signing for Alerts.mobile and Alerts.wear:
+# 1. Copy this file to "signing.properties" in the project root directory (or add to local.properties).
+# 2. Specify the absolute or relative path to your release keystore and your actual passwords.
+# 3. "signing.properties" is untracked and ignored by Git. NEVER commit real passwords.
+#
+# Alternatively, these parameters can be provided via environment variables:
+# RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+
+RELEASE_STORE_FILE=./keys/alerts-release.jks
+RELEASE_STORE_PASSWORD=your_keystore_password
+RELEASE_KEY_ALIAS=alerts
+RELEASE_KEY_PASSWORD=your_key_password

@@ -5,9 +5,15 @@
 /.serena
 .DS_Store
 /build
+/keys
 /captures
 .externalNativeBuild
 .cxx
 local.properties
+signing.properties
+*.jks
+*.keystore
+*.apk
+*.aab
 **/build/
 GEMINI.md

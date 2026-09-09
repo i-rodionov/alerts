@@ -209,13 +209,14 @@ fun DashboardScreen(
                 }
             }
 
-            // Footer — STRICT REQUIREMENT
+            // Footer — NEPTUN attribution & disclaimer
             // <a href="https://neptun.in.ua/">Дані: Карта повітряних тривог — NEPTUN</a>
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
+                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
                     text = stringResource(R.string.data_source_attribution),
@@ -226,6 +227,12 @@ fun DashboardScreen(
                     modifier = Modifier.clickable {
                         uriHandler.openUri("https://neptun.in.ua/")
                     }
+                )
+                Text(
+                    text = stringResource(R.string.neptun_disclaimer_short),
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
                 )
             }
         }
