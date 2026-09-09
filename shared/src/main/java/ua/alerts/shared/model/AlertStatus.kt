@@ -1,6 +1,7 @@
 package ua.alerts.shared.model
 
 import kotlinx.serialization.Serializable
+import ua.alerts.shared.constants.WearConstants
 
 @Serializable
 data class AlertStatus(
@@ -14,7 +15,7 @@ data class AlertStatus(
     val level: String? = null,
     val reasons: List<String> = emptyList()
 ) {
-    fun isStale(timeoutMs: Long = 15 * 60 * 1000L): Boolean {
+    fun isStale(timeoutMs: Long = WearConstants.DEFAULT_TIMEOUT_MS): Boolean {
         if (updatedAt <= 0) return true
         return (System.currentTimeMillis() - updatedAt) > timeoutMs
     }

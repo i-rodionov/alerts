@@ -1,5 +1,6 @@
 package ua.alerts.shared.constants
 
+@Suppress("unused")
 object WearConstants {
     const val PATH_ALERT_STATUS = "/alert_status"
     const val PATH_REQUEST_SYNC = "/request_sync"
