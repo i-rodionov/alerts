@@ -61,10 +61,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun initDraftProfile(profileId: String?) {
         if (profileId == null) {
-            val hasActiveWatch = profiles.value.any { it.activeOnWatch }
             _draftProfile.value = Profile(
                 backgroundMonitoring = true,
-                activeOnWatch = !hasActiveWatch,
+                activeOnWatch = profiles.value.isEmpty(),
                 soundOnAlarm = true,
                 vibrateOnAlarm = true,
                 soundOnClear = true,

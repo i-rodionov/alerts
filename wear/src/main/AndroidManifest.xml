@@ -44,7 +44,22 @@
             <meta-data
                 android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
                 android:value="0" />
+            <meta-data
+                android:name="android.support.wearable.complications.PROVIDER_CONFIG_ACTION"
+                android:value="ua.alerts.wear.action.CONFIG_COMPLICATION" />
         </service>
+
+        <activity
+            android:name=".complication.ComplicationConfigActivity"
+            android:exported="true"
+            android:label="@string/select_region"
+            android:theme="@android:style/Theme.DeviceDefault">
+            <intent-filter>
+                <action android:name="ua.alerts.wear.action.CONFIG_COMPLICATION" />
+                <category android:name="android.support.wearable.complications.category.PROVIDER_CONFIG" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <service
             android:name=".service.WearDataListenerService"

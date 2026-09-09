@@ -9,6 +9,7 @@ import com.google.android.gms.wearable.WearableListenerService
 import kotlinx.serialization.json.Json
 import ua.alerts.shared.constants.WearConstants
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.WatchSyncData
 import ua.alerts.wear.WearAlertApp
 import ua.alerts.wear.complication.AlertComplicationService
 
@@ -22,20 +23,33 @@ class WearDataListenerService : WearableListenerService() {
                 val uri = event.dataItem.uri
                 if (uri.path == WearConstants.PATH_ALERT_STATUS) {
                     val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-                    val payloadJson = dataMap.getString(WearConstants.KEY_ALERT_DATA)
+                    val syncDataJson = dataMap.getString(WearConstants.KEY_SYNC_DATA)
+                    val legacyAlertJson = dataMap.getString(WearConstants.KEY_ALERT_DATA)
 
-                    if (!payloadJson.isNullOrEmpty()) {
+                    var updated = false
+                    if (!syncDataJson.isNullOrEmpty()) {
                         try {
-                            val newStatus = json.decodeFromString<AlertStatus>(payloadJson)
-                            WearAlertApp.instance.alertRepository.updateStatus(newStatus)
-
-                            // Request immediate update of all active complications
-                            val requester = ComplicationDataSourceUpdateRequester.create(
-                                this,
-                                ComponentName(this, AlertComplicationService::class.java)
-                            )
-                            requester.requestUpdateAll()
+                            val newSyncData = json.decodeFromString<WatchSyncData>(syncDataJson)
+                            WearAlertApp.instance.alertRepository.updateSyncData(newSyncData)
+                            updated = true
                         } catch (_: Exception) {}
+                    }
+
+                    if (!updated && !legacyAlertJson.isNullOrEmpty()) {
+                        try {
+                            val newStatus = json.decodeFromString<AlertStatus>(legacyAlertJson)
+                            WearAlertApp.instance.alertRepository.updateStatus(newStatus)
+                            updated = true
+                        } catch (_: Exception) {}
+                    }
+
+                    if (updated) {
+                        // Request immediate update of all active complications
+                        val requester = ComplicationDataSourceUpdateRequester.create(
+                            this,
+                            ComponentName(this, AlertComplicationService::class.java)
+                        )
+                        requester.requestUpdateAll()
                     }
                 }
             }

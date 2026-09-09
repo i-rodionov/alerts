@@ -26,6 +26,7 @@ import ua.alerts.shared.data.DefaultRegions
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.NeptunAlertsResponse
 import ua.alerts.shared.model.Profile
+import ua.alerts.shared.model.WatchSyncData
 
 class AlertForegroundService : Service() {
 
@@ -76,7 +77,7 @@ class AlertForegroundService : Service() {
         notificationHelper = NotificationHelper(applicationContext)
         neptunClient = NeptunClient()
         wearSyncManager = WearSyncManager(applicationContext, serviceScope) {
-            AlertRepository.alertStatus.value
+            AlertRepository.watchSyncData.value
         }
 
         wearSyncManager.start()
@@ -189,8 +190,18 @@ class AlertForegroundService : Service() {
                 }
                 AlertRepository.setProfileAlerts(statusMap)
 
-                // Active watch profile status
-                val watchProfile = profiles.find { it.activeOnWatch } ?: profiles.firstOrNull()
+                // Synchronized watch profiles and statuses
+                val synchronizedProfiles = profiles.filter { it.activeOnWatch }
+                val synchronizedStatuses = synchronizedProfiles.associate { it.id to (statusMap[it.id] ?: AlertStatus()) }
+                val watchSyncData = WatchSyncData(
+                    profiles = synchronizedProfiles,
+                    statuses = synchronizedStatuses,
+                    updatedAt = System.currentTimeMillis()
+                )
+                AlertRepository.setWatchSyncData(watchSyncData)
+
+                // Active watch profile status (for ongoing mobile status notification)
+                val watchProfile = synchronizedProfiles.firstOrNull() ?: profiles.firstOrNull()
                 val watchStatus = if (watchProfile != null) {
                     statusMap[watchProfile.id] ?: AlertStatus()
                 } else {
@@ -206,8 +217,8 @@ class AlertForegroundService : Service() {
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID_SERVICE, notification)
 
-                // Sync status with Galaxy Watch
-                wearSyncManager.syncAlertStatus(watchStatus)
+                // Sync all synchronized profiles to Wear OS
+                wearSyncManager.syncWatchData(watchSyncData)
 
                 // Trigger sound/vibration notifications per monitored profile
                 val currentProfileIds = profiles.map { it.id }.toSet()

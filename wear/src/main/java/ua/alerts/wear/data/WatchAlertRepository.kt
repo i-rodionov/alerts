@@ -14,6 +14,8 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.serialization.json.Json
 import ua.alerts.shared.constants.WearConstants
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.Profile
+import ua.alerts.shared.model.WatchSyncData
 
 class WatchAlertRepository(private val context: Context) {
 
@@ -21,10 +23,48 @@ class WatchAlertRepository(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    private val _syncData = MutableStateFlow(loadInitialSyncData())
+    val syncData: StateFlow<WatchSyncData> = _syncData.asStateFlow()
+
     private val _currentStatus = MutableStateFlow(loadInitialStatus())
     val currentStatus: StateFlow<AlertStatus> = _currentStatus.asStateFlow()
 
+    private fun loadInitialSyncData(): WatchSyncData {
+        val rawJson = prefs.getString("cached_sync_data_json", null)
+        if (!rawJson.isNullOrBlank()) {
+            try {
+                return json.decodeFromString<WatchSyncData>(rawJson)
+            } catch (_: Exception) {}
+        }
+
+        // Backward compatibility fallback from cached_status_json
+        val legacyJson = prefs.getString("cached_status_json", null)
+        if (!legacyJson.isNullOrBlank()) {
+            try {
+                val legacyStatus = json.decodeFromString<AlertStatus>(legacyJson)
+                val fallbackProfile = Profile(
+                    id = "legacy_watch_profile",
+                    regionName = legacyStatus.regionName,
+                    districtName = legacyStatus.districtName,
+                    activeOnWatch = true
+                )
+                return WatchSyncData(
+                    profiles = listOf(fallbackProfile),
+                    statuses = mapOf("legacy_watch_profile" to legacyStatus),
+                    updatedAt = legacyStatus.updatedAt
+                )
+            } catch (_: Exception) {}
+        }
+
+        return WatchSyncData()
+    }
+
     private fun loadInitialStatus(): AlertStatus {
+        val sync = loadInitialSyncData()
+        val primaryProfile = sync.profiles.firstOrNull()
+        if (primaryProfile != null) {
+            return sync.statuses[primaryProfile.id] ?: AlertStatus()
+        }
         val rawJson = prefs.getString("cached_status_json", null) ?: return AlertStatus()
         return try {
             json.decodeFromString<AlertStatus>(rawJson)
@@ -33,10 +73,62 @@ class WatchAlertRepository(private val context: Context) {
         }
     }
 
+    fun updateSyncData(newSyncData: WatchSyncData) {
+        _syncData.value = newSyncData
+        val rawJson = json.encodeToString(WatchSyncData.serializer(), newSyncData)
+        prefs.edit { putString("cached_sync_data_json", rawJson) }
+
+        val primaryProfile = newSyncData.profiles.firstOrNull()
+        val primaryStatus = if (primaryProfile != null) {
+            newSyncData.statuses[primaryProfile.id] ?: AlertStatus()
+        } else {
+            AlertStatus()
+        }
+        _currentStatus.value = primaryStatus
+        val legacyRawJson = json.encodeToString(AlertStatus.serializer(), primaryStatus)
+        prefs.edit { putString("cached_status_json", legacyRawJson) }
+    }
+
     fun updateStatus(newStatus: AlertStatus) {
-        _currentStatus.value = newStatus
-        val rawJson = json.encodeToString(AlertStatus.serializer(), newStatus)
-        prefs.edit { putString("cached_status_json", rawJson) }
+        val syntheticProfile = Profile(
+            id = "default_profile",
+            regionName = newStatus.regionName,
+            districtName = newStatus.districtName,
+            activeOnWatch = true
+        )
+        updateSyncData(
+            WatchSyncData(
+                profiles = listOf(syntheticProfile),
+                statuses = mapOf(syntheticProfile.id to newStatus),
+                updatedAt = newStatus.updatedAt
+            )
+        )
+    }
+
+    fun getSynchronizedProfiles(): List<Profile> {
+        return _syncData.value.profiles
+    }
+
+    fun getProfile(profileId: String?): Profile? {
+        if (profileId.isNullOrEmpty()) return null
+        return _syncData.value.profiles.find { it.id == profileId }
+    }
+
+    fun getStatus(profileId: String?): AlertStatus? {
+        if (profileId.isNullOrEmpty()) return null
+        return _syncData.value.statuses[profileId]
+    }
+
+    fun getComplicationProfileId(instanceId: Int): String? {
+        return prefs.getString("complication_${instanceId}_profile_id", null)
+    }
+
+    fun setComplicationProfileId(instanceId: Int, profileId: String) {
+        prefs.edit { putString("complication_${instanceId}_profile_id", profileId) }
+    }
+
+    fun removeComplicationConfig(instanceId: Int) {
+        prefs.edit { remove("complication_${instanceId}_profile_id") }
     }
 
     fun requestSyncFromPhone() {

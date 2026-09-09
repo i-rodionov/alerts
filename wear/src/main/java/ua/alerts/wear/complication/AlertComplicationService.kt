@@ -11,6 +11,7 @@ import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
+import ua.alerts.shared.constants.WearConstants
 import ua.alerts.wear.R
 import ua.alerts.wear.WearAlertApp
 import ua.alerts.wear.ui.WearMainActivity
@@ -43,13 +44,21 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
     }
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
-        val status = try {
-            WearAlertApp.instance.alertRepository.currentStatus.value
+        val repo = try {
+            WearAlertApp.instance.alertRepository
         } catch (_: Exception) {
             null
         }
 
-        val tapIntent = Intent(this, WearMainActivity::class.java)
+        val configuredProfileId = repo?.getComplicationProfileId(request.complicationInstanceId)
+        val profile = repo?.getProfile(configuredProfileId)
+        val status = if (profile != null) repo.getStatus(configuredProfileId) else null
+
+        val tapIntent = Intent(this, WearMainActivity::class.java).apply {
+            if (!configuredProfileId.isNullOrEmpty()) {
+                putExtra(WearConstants.EXTRA_PROFILE_ID, configuredProfileId)
+            }
+        }
         val pendingIntent = PendingIntent.getActivity(
             this,
             request.complicationInstanceId,
@@ -57,9 +66,12 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val isOffline = status == null || status.isStale()
-        val isAlarm = status?.isAlarm == true
-        val regionName = status?.displayName?.ifEmpty { getString(R.string.app_name) } ?: getString(R.string.app_name)
+        // Offline if unconfigured, or profile removed/unsynchronized, or status missing/stale
+        val isOffline = configuredProfileId == null || profile == null || status == null || status.isStale()
+        val isAlarm = !isOffline && status?.isAlarm == true
+        val regionName = profile?.displayName?.ifEmpty { getString(R.string.app_name) }
+            ?: status?.displayName?.ifEmpty { getString(R.string.app_name) }
+            ?: getString(R.string.app_name)
 
         val iconRes = when {
             isOffline -> R.drawable.ic_offline_warning

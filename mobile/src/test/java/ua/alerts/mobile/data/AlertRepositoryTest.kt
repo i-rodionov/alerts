@@ -7,6 +7,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.Profile
+import ua.alerts.shared.model.WatchSyncData
 
 class AlertRepositoryTest {
 
@@ -90,5 +92,29 @@ class AlertRepositoryTest {
 
         AlertRepository.reset()
         assertTrue(AlertRepository.profileAlerts.value.isEmpty())
+    }
+
+    @Test
+    fun testWatchSyncDataUpdatesAndReset() {
+        assertTrue(AlertRepository.watchSyncData.value.profiles.isEmpty())
+
+        val p1 = Profile(id = "p1", regionName = "Київ", activeOnWatch = true)
+        val p2 = Profile(id = "p2", regionName = "Львів", activeOnWatch = true)
+        val s1 = AlertStatus(isAlarm = true, regionName = "Київ")
+        val s2 = AlertStatus(isAlarm = false, regionName = "Львів")
+        val syncData = WatchSyncData(
+            profiles = listOf(p1, p2),
+            statuses = mapOf("p1" to s1, "p2" to s2)
+        )
+
+        AlertRepository.setWatchSyncData(syncData)
+        assertEquals(2, AlertRepository.watchSyncData.value.profiles.size)
+        assertEquals("p1", AlertRepository.watchSyncData.value.profiles[0].id)
+        assertEquals("p2", AlertRepository.watchSyncData.value.profiles[1].id)
+        assertTrue(AlertRepository.watchSyncData.value.statuses["p1"]!!.isAlarm)
+
+        AlertRepository.reset()
+        assertTrue(AlertRepository.watchSyncData.value.profiles.isEmpty())
+        assertTrue(AlertRepository.watchSyncData.value.statuses.isEmpty())
     }
 }

@@ -67,21 +67,10 @@ class SettingsRepository(private val context: Context) {
 
             val updatedList = if (currentList.any { it.id == profile.id }) {
                 currentList.map { existing ->
-                    if (existing.id == profile.id) {
-                        profile
-                    } else if (profile.activeOnWatch) {
-                        existing.copy(activeOnWatch = false)
-                    } else {
-                        existing
-                    }
+                    if (existing.id == profile.id) profile else existing
                 }
             } else {
-                val base = if (profile.activeOnWatch) {
-                    currentList.map { it.copy(activeOnWatch = false) }
-                } else {
-                    currentList
-                }
-                base + profile
+                currentList + profile
             }
 
             prefs[KEY_PROFILES_JSON] = json.encodeToString(updatedList)
@@ -100,18 +89,11 @@ class SettingsRepository(private val context: Context) {
             }
 
             val filtered = currentList.filter { it.id != profileId }
-            val wasActiveOnWatch = currentList.find { it.id == profileId }?.activeOnWatch == true
-            val finalList = if (wasActiveOnWatch && filtered.isNotEmpty() && filtered.none { it.activeOnWatch }) {
-                filtered.mapIndexed { index, p -> if (index == 0) p.copy(activeOnWatch = true) else p }
-            } else {
-                filtered
-            }
-
-            prefs[KEY_PROFILES_JSON] = json.encodeToString(finalList)
+            prefs[KEY_PROFILES_JSON] = json.encodeToString(filtered)
         }
     }
 
-    suspend fun setActiveWatchProfile(profileId: String) {
+    suspend fun setProfileWatchSync(profileId: String, enabled: Boolean) {
         context.dataStore.edit { prefs ->
             val currentList = try {
                 val jsonStr = prefs[KEY_PROFILES_JSON]
@@ -121,9 +103,11 @@ class SettingsRepository(private val context: Context) {
             }
 
             val updatedList = currentList.map { p ->
-                p.copy(activeOnWatch = (p.id == profileId))
+                if (p.id == profileId) p.copy(activeOnWatch = enabled) else p
             }
             prefs[KEY_PROFILES_JSON] = json.encodeToString(updatedList)
         }
     }
+
+    suspend fun setActiveWatchProfile(profileId: String) = setProfileWatchSync(profileId, true)
 }

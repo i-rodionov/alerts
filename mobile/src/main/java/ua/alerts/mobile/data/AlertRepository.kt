@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.WatchSyncData
 
 object AlertRepository {
 
@@ -18,6 +19,9 @@ object AlertRepository {
 
     private val _profileAlerts = MutableStateFlow<Map<String, AlertStatus>>(emptyMap())
     val profileAlerts: StateFlow<Map<String, AlertStatus>> = _profileAlerts.asStateFlow()
+
+    private val _watchSyncData = MutableStateFlow(WatchSyncData())
+    val watchSyncData: StateFlow<WatchSyncData> = _watchSyncData.asStateFlow()
 
     private val _connectedWatchCount = MutableStateFlow(0)
     val connectedWatchCount: StateFlow<Int> = _connectedWatchCount.asStateFlow()
@@ -45,6 +49,10 @@ object AlertRepository {
         _profileAlerts.value = alerts
     }
 
+    fun setWatchSyncData(data: WatchSyncData) {
+        _watchSyncData.value = data
+    }
+
     fun setConnectedWatchCount(count: Int) {
         _connectedWatchCount.value = count
     }
@@ -54,6 +62,7 @@ object AlertRepository {
         _connectionStatus.value = ConnectionStatus.STOPPED
         _alertStatus.value = AlertStatus()
         _profileAlerts.value = emptyMap()
+        _watchSyncData.value = WatchSyncData()
         _connectedWatchCount.value = 0
         _lastError.value = null
     }

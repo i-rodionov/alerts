@@ -17,11 +17,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import ua.alerts.shared.constants.WearConstants
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.WatchSyncData
 
 class WearSyncManager(
     private val context: Context,
     private val scope: CoroutineScope,
-    private val getCurrentStatus: () -> AlertStatus
+    private val getCurrentSyncData: () -> WatchSyncData
 ) : MessageClient.OnMessageReceivedListener {
 
     private val dataClient = Wearable.getDataClient(context)
@@ -53,11 +54,20 @@ class WearSyncManager(
         }
     }
 
-    suspend fun syncAlertStatus(status: AlertStatus): Boolean = withContext(Dispatchers.IO) {
+    suspend fun syncWatchData(data: WatchSyncData): Boolean = withContext(Dispatchers.IO) {
         try {
-            val jsonString = json.encodeToString(AlertStatus.serializer(), status)
+            val syncDataJson = json.encodeToString(WatchSyncData.serializer(), data)
             val putDataMapReq = PutDataMapRequest.create(WearConstants.PATH_ALERT_STATUS).apply {
-                dataMap.putString(WearConstants.KEY_ALERT_DATA, jsonString)
+                dataMap.putString(WearConstants.KEY_SYNC_DATA, syncDataJson)
+                // Backward compatibility for legacy clients expecting KEY_ALERT_DATA
+                val primaryProfile = data.profiles.firstOrNull()
+                val primaryStatus = if (primaryProfile != null) {
+                    data.statuses[primaryProfile.id] ?: AlertStatus()
+                } else {
+                    AlertStatus()
+                }
+                val legacyAlertJson = json.encodeToString(AlertStatus.serializer(), primaryStatus)
+                dataMap.putString(WearConstants.KEY_ALERT_DATA, legacyAlertJson)
                 dataMap.putLong(WearConstants.KEY_TIMESTAMP, System.currentTimeMillis())
             }
             val putDataReq = putDataMapReq.asPutDataRequest().setUrgent()
@@ -68,10 +78,12 @@ class WearSyncManager(
         }
     }
 
+    suspend fun syncAlertStatus(status: AlertStatus): Boolean = syncWatchData(getCurrentSyncData())
+
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path == WearConstants.PATH_REQUEST_SYNC) {
             scope.launch {
-                syncAlertStatus(getCurrentStatus())
+                syncWatchData(getCurrentSyncData())
             }
         }
     }
