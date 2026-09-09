@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--suppress AndroidDomInspection -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="AndroidDomInspection">
+<!--suppress ALL -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-feature android:name="android.hardware.type.watch" />
 
@@ -14,8 +12,7 @@
         android:icon="@android:drawable/ic_dialog_alert"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault"
-        tools:ignore="AllowBackup">
+        android:theme="@android:style/Theme.DeviceDefault">
 
         <meta-data
             android:name="com.google.android.wearable.standalone"
@@ -24,8 +21,7 @@
         <activity
             android:name="ua.alerts.wear.ui.WearMainActivity"
             android:exported="true"
-            android:taskAffinity="ua.alerts.wear"
-            android:theme="@android:style/Theme.DeviceDefault">
+            android:taskAffinity="ua.alerts.wear">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -56,8 +52,7 @@
         <activity
             android:name="ua.alerts.wear.complication.ComplicationConfigActivity"
             android:exported="true"
-            android:label="@string/select_region"
-            android:theme="@android:style/Theme.DeviceDefault">
+            android:label="@string/select_region">
             <intent-filter>
                 <action android:name="ua.alerts.wear.action.CONFIG_COMPLICATION" />
                 <category android:name="android.support.wearable.complications.category.PROVIDER_CONFIG" />
