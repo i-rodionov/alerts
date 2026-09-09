@@ -15,7 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -23,7 +23,8 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,7 +79,7 @@ fun RegionSelectScreen(
                 title = { Text(stringResource(R.string.choose_region), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.btn_back))
                     }
                 }
             )
@@ -99,7 +100,7 @@ fun RegionSelectScreen(
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Очистити")
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.btn_clear))
                         }
                     }
                 },
@@ -153,6 +154,8 @@ fun RegionItem(
     onToggleExpand: () -> Unit,
     onSelect: (regionId: String, regionName: String, districtId: String?, districtName: String?) -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
+    val regionName = region.getLocalizedName(locale.language)
     val isRegionSelected = selectedRegionKey == region.id && selectedDistrictKey == null
 
     Card(
@@ -172,7 +175,7 @@ fun RegionItem(
                     .fillMaxWidth()
                     .clickable {
                         if (region.raions.isEmpty()) {
-                            onSelect(region.id, region.nameUk, null, null)
+                            onSelect(region.id, regionName, null, null)
                         } else {
                             onToggleExpand()
                         }
@@ -183,13 +186,13 @@ fun RegionItem(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = region.nameUk,
+                        text = regionName,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp
                     )
                     if (region.raions.isNotEmpty()) {
                         Text(
-                            text = "${region.raions.size} районів",
+                            text = stringResource(R.string.raions_count, region.raions.size),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -205,7 +208,7 @@ fun RegionItem(
                 } else if (isRegionSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Обрано",
+                        contentDescription = stringResource(R.string.item_selected),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -217,19 +220,19 @@ fun RegionItem(
                         .fillMaxWidth()
                         .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
                 ) {
-                    Divider()
+                    HorizontalDivider()
 
                     // Option: Entire oblast
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelect(region.id, region.nameUk, null, null) }
+                            .clickable { onSelect(region.id, regionName, null, null) }
                             .padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "?? " + stringResource(R.string.all_oblast),
+                            text = "⌖ " + stringResource(R.string.all_oblast),
                             fontWeight = if (isRegionSelected) FontWeight.Bold else FontWeight.Normal,
                             color = if (isRegionSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
@@ -240,18 +243,19 @@ fun RegionItem(
 
                     // Raions
                     region.raions.forEach { district ->
+                        val districtName = district.getLocalizedName(locale.language)
                         val isDistrictSelected = selectedDistrictKey == district.id
-                        Divider()
+                        HorizontalDivider()
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onSelect(region.id, region.nameUk, district.id, district.nameUk) }
+                                .clickable { onSelect(region.id, regionName, district.id, districtName) }
                                 .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = district.nameUk,
+                                text = districtName,
                                 fontWeight = if (isDistrictSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isDistrictSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                             )

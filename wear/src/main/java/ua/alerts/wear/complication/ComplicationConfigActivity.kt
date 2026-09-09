@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,6 +85,7 @@ fun ComplicationConfigScreen(
     selectedProfileId: String?,
     onProfileSelected: (Profile) -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     val listState = rememberScalingLazyListState()
 
     ScalingLazyColumn(
@@ -134,13 +136,13 @@ fun ComplicationConfigScreen(
                     onCheckedChange = { onProfileSelected(profile) },
                     label = {
                         Text(
-                            text = profile.displayName,
+                            text = profile.getLocalizedDisplayName(locale.language),
                             maxLines = 1,
                             fontSize = 12.sp
                         )
                     },
                     secondaryLabel = if (!profile.districtName.isNullOrEmpty() && profile.regionName.isNotEmpty()) {
-                        { Text(text = profile.regionName, fontSize = 9.sp, color = Color.Gray) }
+                        { Text(text = profile.getLocalizedRegionName(locale.language), fontSize = 9.sp, color = Color.Gray) }
                     } else null,
                     toggleControl = {
                         RadioButton(selected = isSelected)

@@ -17,8 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import ua.alerts.shared.util.EventTimeFormatter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ fun AlertDetailScreen(
     status: AlertStatus,
     onSyncClick: () -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     val listState = rememberScalingLazyListState()
     val isOffline = status.isStale()
     val isAlarm = status.isAlarm
@@ -68,7 +71,7 @@ fun AlertDetailScreen(
         else -> R.drawable.ic_shield_check
     }
 
-    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val timeFormat = SimpleDateFormat("HH:mm", locale)
     val lastSyncText = if (status.updatedAt > 0) {
         timeFormat.format(Date(status.updatedAt))
     } else {
@@ -112,7 +115,7 @@ fun AlertDetailScreen(
 
         item {
             Text(
-                text = status.displayName.ifEmpty { stringResource(R.string.app_name) },
+                text = status.getLocalizedDisplayName(locale.language).ifEmpty { stringResource(R.string.app_name) },
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
@@ -132,9 +135,10 @@ fun AlertDetailScreen(
         }
 
         if (isAlarm && !status.since.isNullOrEmpty()) {
+            val formattedTime = EventTimeFormatter.formatLocalEventTime(status.since, locale)
             item {
                 Text(
-                    text = stringResource(R.string.alert_duration, status.since ?: ""),
+                    text = stringResource(R.string.alert_duration, formattedTime),
                     fontSize = 11.sp,
                     color = Color.LightGray,
                     textAlign = TextAlign.Center

@@ -262,4 +262,33 @@ class ComplicationMultiProfileTest {
         assertEquals("—", display.shortText)
         assertEquals("⚠️", display.shortTitle)
     }
+
+    @Test
+    fun testLanguageSyncAndLocalizedProfileNames() {
+        val profile = Profile(
+            id = "test_profile",
+            regionId = "odeska",
+            regionName = "Одеська область",
+            districtId = "odeska:odeskyi",
+            districtName = "Одеський район",
+            activeOnWatch = true
+        )
+        val syncDataEn = WatchSyncData(
+            profiles = listOf(profile),
+            language = "en"
+        )
+        val syncDataUk = WatchSyncData(
+            profiles = listOf(profile),
+            language = "uk"
+        )
+
+        assertEquals("en", syncDataEn.language)
+        assertEquals("uk", syncDataUk.language)
+
+        assertEquals("Odesa District", profile.getLocalizedDisplayName(syncDataEn.language))
+        assertEquals("Odesa Oblast", profile.getLocalizedRegionName(syncDataEn.language))
+
+        assertEquals("Одеський район", profile.getLocalizedDisplayName(syncDataUk.language))
+        assertEquals("Одеська область", profile.getLocalizedRegionName(syncDataUk.language))
+    }
 }

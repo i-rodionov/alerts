@@ -45,8 +45,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import ua.alerts.shared.util.EventTimeFormatter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -82,7 +84,7 @@ fun DashboardScreen(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Neptun Alerts",
+                            text = stringResource(R.string.app_name),
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
                         )
@@ -137,14 +139,14 @@ fun DashboardScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Немає доданих профілів",
+                            text = stringResource(R.string.empty_profiles_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Додайте область або район для моніторингу повітряних тривог",
+                            text = stringResource(R.string.empty_profiles_desc),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -156,7 +158,7 @@ fun DashboardScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Додати профіль")
+                            Text(stringResource(R.string.add_profile_button))
                         }
                     }
                 }
@@ -196,7 +198,7 @@ fun DashboardScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Додати профіль",
+                                    text = stringResource(R.string.add_profile_button),
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontSize = 16.sp
@@ -216,7 +218,7 @@ fun DashboardScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Дані: Карта повітряних тривог — NEPTUN",
+                    text = stringResource(R.string.data_source_attribution),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary,
                     textDecoration = TextDecoration.Underline,
@@ -236,6 +238,7 @@ fun ProfileCard(
     alertStatus: AlertStatus,
     onClick: () -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     val isAlarm = alertStatus.isAlarm
     val cardBg = when {
         alertStatus.isYellow -> WarningYellowLight
@@ -288,10 +291,10 @@ fun ProfileCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = profile.displayName.ifEmpty { stringResource(R.string.region_not_selected) },
+                        text = profile.getLocalizedDisplayName(locale.language).ifEmpty { stringResource(R.string.region_not_selected) },
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Color(0xFF1C1B1F)
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -321,7 +324,7 @@ fun ProfileCard(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.Watch,
-                                    contentDescription = "Активний на годиннику",
+                                    contentDescription = stringResource(R.string.action_active_on_watch),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -342,7 +345,7 @@ fun ProfileCard(
                     ) {
                         Icon(
                             imageVector = if (profile.backgroundMonitoring) Icons.Default.NotificationsActive else Icons.Default.NotificationsOff,
-                            contentDescription = if (profile.backgroundMonitoring) "Моніторинг активний" else "Моніторинг вимкнено",
+                            contentDescription = if (profile.backgroundMonitoring) stringResource(R.string.monitoring_active) else stringResource(R.string.status_monitoring_disabled),
                             tint = if (profile.backgroundMonitoring) SafeGreen else Color.Gray,
                             modifier = Modifier.size(16.dp)
                         )
@@ -361,11 +364,12 @@ fun ProfileCard(
             }
 
             if (isAlarm && !alertStatus.since.isNullOrEmpty()) {
+                val formattedTime = EventTimeFormatter.formatLocalEventTime(alertStatus.since, locale)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = stringResource(R.string.alarm_started, alertStatus.since ?: ""),
+                    text = stringResource(R.string.alarm_started, formattedTime),
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color(0xFF49454F)
                 )
             }
         }
@@ -374,12 +378,19 @@ fun ProfileCard(
 
 @Composable
 fun ConnectionBadge(status: ConnectionStatus) {
-    val (text, color) = when (status) {
-        ConnectionStatus.CONNECTED -> "Live" to SafeGreen
-        ConnectionStatus.CONNECTING -> "..." to Color(0xFFFFA000)
-        ConnectionStatus.RECONNECTING -> "Sync..." to Color(0xFFFFA000)
-        ConnectionStatus.ERROR -> "Error" to DangerRed
-        ConnectionStatus.STOPPED -> "Off" to Color.Gray
+    val text = when (status) {
+        ConnectionStatus.CONNECTED -> stringResource(R.string.badge_live)
+        ConnectionStatus.CONNECTING -> stringResource(R.string.badge_connecting)
+        ConnectionStatus.RECONNECTING -> stringResource(R.string.badge_syncing)
+        ConnectionStatus.ERROR -> stringResource(R.string.badge_error)
+        ConnectionStatus.STOPPED -> stringResource(R.string.badge_off)
+    }
+    val color = when (status) {
+        ConnectionStatus.CONNECTED -> SafeGreen
+        ConnectionStatus.CONNECTING -> Color(0xFFFFA000)
+        ConnectionStatus.RECONNECTING -> Color(0xFFFFA000)
+        ConnectionStatus.ERROR -> DangerRed
+        ConnectionStatus.STOPPED -> Color.Gray
     }
 
     Box(

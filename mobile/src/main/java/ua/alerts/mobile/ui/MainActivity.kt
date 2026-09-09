@@ -16,9 +16,15 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import android.content.res.Configuration
+import java.util.Locale
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
@@ -104,81 +110,107 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            AlertsTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val currentScreen by viewModel.currentScreen.collectAsState()
+            val appLanguage by viewModel.appLanguage.collectAsState()
+            val configuration = LocalConfiguration.current
+            val context = LocalContext.current
+            val locale = remember(appLanguage) {
+                when (appLanguage) {
+                    "uk" -> Locale("uk")
+                    "en" -> Locale("en")
+                    else -> Locale.getDefault()
+                }
+            }
+            val localizedConfig = remember(configuration, locale) {
+                Configuration(configuration).apply {
+                    setLocale(locale)
+                }
+            }
+            val localizedContext = remember(context, localizedConfig) {
+                context.createConfigurationContext(localizedConfig)
+            }
 
-                    BackHandler(enabled = currentScreen != Screen.Dashboard) {
-                        viewModel.navigateBack()
-                    }
+            CompositionLocalProvider(
+                LocalConfiguration provides localizedConfig,
+                LocalContext provides localizedContext
+            ) {
+                AlertsTheme {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        val currentScreen by viewModel.currentScreen.collectAsState()
 
-                    when (val screen = currentScreen) {
-                        is Screen.Dashboard -> {
-                            val profiles by viewModel.profiles.collectAsState()
-                            val profileAlerts by viewModel.profileAlerts.collectAsState()
-                            val connectionStatus by viewModel.connectionStatus.collectAsState()
-
-                            DashboardScreen(
-                                profiles = profiles,
-                                profileAlerts = profileAlerts,
-                                connectionStatus = connectionStatus,
-                                onRefresh = { viewModel.refreshData() },
-                                onOpenSettings = { viewModel.navigateTo(Screen.GlobalSettings) },
-                                onProfileClick = { profile ->
-                                    viewModel.initDraftProfile(profile.id)
-                                    viewModel.navigateTo(Screen.ProfileConfig(profile.id))
-                                },
-                                onAddProfile = {
-                                    viewModel.initDraftProfile(null)
-                                    viewModel.navigateTo(Screen.ProfileConfig(null))
-                                }
-                            )
+                        BackHandler(enabled = currentScreen != Screen.Dashboard) {
+                            viewModel.navigateBack()
                         }
 
-                        is Screen.GlobalSettings -> {
-                            val globalMonitoring by viewModel.globalMonitoring.collectAsState()
-                            val connectedWatchCount by viewModel.connectedWatchCount.collectAsState()
+                        when (val screen = currentScreen) {
+                            is Screen.Dashboard -> {
+                                val profiles by viewModel.profiles.collectAsState()
+                                val profileAlerts by viewModel.profileAlerts.collectAsState()
+                                val connectionStatus by viewModel.connectionStatus.collectAsState()
 
-                            GlobalSettingsScreen(
-                                globalMonitoring = globalMonitoring,
-                                connectedWatchCount = connectedWatchCount,
-                                onToggleGlobalMonitoring = { viewModel.setGlobalMonitoring(it) },
-                                onSyncWatch = { viewModel.refreshData() },
-                                onBack = { viewModel.navigateBack() }
-                            )
-                        }
+                                DashboardScreen(
+                                    profiles = profiles,
+                                    profileAlerts = profileAlerts,
+                                    connectionStatus = connectionStatus,
+                                    onRefresh = { viewModel.refreshData() },
+                                    onOpenSettings = { viewModel.navigateTo(Screen.GlobalSettings) },
+                                    onProfileClick = { profile ->
+                                        viewModel.initDraftProfile(profile.id)
+                                        viewModel.navigateTo(Screen.ProfileConfig(profile.id))
+                                    },
+                                    onAddProfile = {
+                                        viewModel.initDraftProfile(null)
+                                        viewModel.navigateTo(Screen.ProfileConfig(null))
+                                    }
+                                )
+                            }
 
-                        is Screen.ProfileConfig -> {
-                            val draftProfile by viewModel.draftProfile.collectAsState()
+                            is Screen.GlobalSettings -> {
+                                val globalMonitoring by viewModel.globalMonitoring.collectAsState()
+                                val connectedWatchCount by viewModel.connectedWatchCount.collectAsState()
 
-                            ProfileConfigScreen(
-                                profile = draftProfile,
-                                isEditMode = screen.profileId != null,
-                                onUpdateProfile = { updater -> viewModel.updateDraft(updater) },
-                                onSaveNewProfile = { viewModel.saveDraftProfile() },
-                                onDeleteProfile = { id -> viewModel.deleteProfile(id) },
-                                onOpenRegionPicker = { viewModel.navigateTo(Screen.RegionPicker(screen.profileId)) },
-                                onPickAlertSound = { launchSoundPicker(SoundTarget.ALERT, draftProfile?.alertSoundUri) },
-                                onPickClearSound = { launchSoundPicker(SoundTarget.CLEAR, draftProfile?.clearSoundUri) },
-                                onBack = { viewModel.navigateBack() }
-                            )
-                        }
+                                GlobalSettingsScreen(
+                                    globalMonitoring = globalMonitoring,
+                                    connectedWatchCount = connectedWatchCount,
+                                    appLanguage = appLanguage,
+                                    onToggleGlobalMonitoring = { viewModel.setGlobalMonitoring(it) },
+                                    onSelectLanguage = { viewModel.setAppLanguage(it) },
+                                    onSyncWatch = { viewModel.refreshData() },
+                                    onBack = { viewModel.navigateBack() }
+                                )
+                            }
 
-                        is Screen.RegionPicker -> {
-                            val draftProfile by viewModel.draftProfile.collectAsState()
+                            is Screen.ProfileConfig -> {
+                                val draftProfile by viewModel.draftProfile.collectAsState()
 
-                            RegionSelectScreen(
-                                selectedRegionKey = draftProfile?.regionId,
-                                selectedDistrictKey = draftProfile?.districtId,
-                                onSelectRegion = { regId, regName, distId, distName ->
-                                    viewModel.setDraftRegion(regId, regName, distId, distName)
-                                    viewModel.navigateBack()
-                                },
-                                onBack = { viewModel.navigateBack() }
-                            )
+                                ProfileConfigScreen(
+                                    profile = draftProfile,
+                                    isEditMode = screen.profileId != null,
+                                    onUpdateProfile = { updater -> viewModel.updateDraft(updater) },
+                                    onSaveNewProfile = { viewModel.saveDraftProfile() },
+                                    onDeleteProfile = { id -> viewModel.deleteProfile(id) },
+                                    onOpenRegionPicker = { viewModel.navigateTo(Screen.RegionPicker(screen.profileId)) },
+                                    onPickAlertSound = { launchSoundPicker(SoundTarget.ALERT, draftProfile?.alertSoundUri) },
+                                    onPickClearSound = { launchSoundPicker(SoundTarget.CLEAR, draftProfile?.clearSoundUri) },
+                                    onBack = { viewModel.navigateBack() }
+                                )
+                            }
+
+                            is Screen.RegionPicker -> {
+                                val draftProfile by viewModel.draftProfile.collectAsState()
+
+                                RegionSelectScreen(
+                                    selectedRegionKey = draftProfile?.regionId,
+                                    selectedDistrictKey = draftProfile?.districtId,
+                                    onSelectRegion = { regId, regName, distId, distName ->
+                                        viewModel.setDraftRegion(regId, regName, distId, distName)
+                                        viewModel.navigateBack()
+                                    },
+                                    onBack = { viewModel.navigateBack() }
+                                )
+                            }
                         }
                     }
                 }

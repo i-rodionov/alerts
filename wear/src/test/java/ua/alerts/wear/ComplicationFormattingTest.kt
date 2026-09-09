@@ -124,4 +124,22 @@ class ComplicationFormattingTest {
         assertEquals("—", textStr)
         assertEquals("⚠️", titleStr)
     }
+
+    @Test
+    fun testComplicationEnglishLocalization() {
+        val status = AlertStatus(
+            isAlarm = true,
+            level = "red",
+            regionKey = "kyivska",
+            regionName = "Київська область",
+            districtKey = "kyivska:boryspilskyi",
+            districtName = "Бориспільський район",
+            updatedAt = System.currentTimeMillis()
+        )
+
+        assertEquals("Boryspil District", status.getLocalizedDisplayName("en"))
+        assertEquals("Kyiv Oblast", status.getLocalizedRegionName("en"))
+        assertEquals("Бориспільський район", status.getLocalizedDisplayName("uk"))
+        assertEquals("Київська область", status.getLocalizedRegionName("uk"))
+    }
 }

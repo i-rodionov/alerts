@@ -17,5 +17,8 @@ class WearAlertApp : Application() {
     companion object {
         lateinit var instance: WearAlertApp
             private set
+
+        val instanceOrNull: WearAlertApp?
+            get() = if (::instance.isInitialized) instance else null
     }
 }

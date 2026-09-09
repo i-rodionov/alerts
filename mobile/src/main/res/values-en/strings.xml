@@ -38,4 +38,53 @@
     <string name="notification_sound_alert">Alert notification sound</string>
     <string name="notification_sound_clear">All-clear notification sound</string>
     <string name="sound_system_default">System default</string>
+
+    <!-- Global settings -->
+    <string name="settings_global_title">General Settings</string>
+    <string name="settings_global_monitoring">Global Monitoring</string>
+    <string name="settings_global_monitoring_on">Background monitoring is enabled for configured profiles</string>
+    <string name="settings_global_monitoring_off">Monitoring is disabled for all profiles</string>
+    <string name="settings_language_title">App Language</string>
+    <string name="settings_language_description">Select application interface language</string>
+    <string name="language_system">System Default</string>
+    <string name="language_uk">Українська</string>
+    <string name="language_en">English</string>
+    <string name="btn_sync">Sync</string>
+
+    <!-- Profile configuration -->
+    <string name="profile_edit_title">Edit Profile</string>
+    <string name="profile_new_title">New Profile</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_select">Select</string>
+    <string name="btn_change">Change</string>
+    <string name="profile_monitoring_params">Monitoring Parameters</string>
+    <string name="profile_active_on_watch">Active on Galaxy Watch</string>
+    <string name="profile_delete">Delete Profile</string>
+    <string name="profile_delete_title">Delete Profile?</string>
+    <string name="profile_delete_message">Are you sure you want to delete profile \"%s\"?</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_cancel">Cancel</string>
+
+    <!-- Region selector & dashboard -->
+    <string name="raions_count">%d districts</string>
+    <string name="btn_clear">Clear</string>
+    <string name="item_selected">Selected</string>
+    <string name="btn_back">Back</string>
+    <string name="action_active_on_watch">Active on Watch</string>
+    <string name="badge_live">Live</string>
+    <string name="badge_connecting">…</string>
+    <string name="badge_syncing">Sync…</string>
+    <string name="badge_error">Error</string>
+    <string name="badge_off">Off</string>
+    <string name="add_profile">Add Region</string>
+    <string name="empty_profiles_title">No profiles added</string>
+    <string name="empty_profiles_desc">Add an oblast or district to monitor air raid alerts</string>
+    <string name="add_profile_button">Add profile</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_alert_desc">Notifications for start or changes of air raid alerts (%s)</string>
+    <string name="notification_channel_clear_desc">Notifications for all-clear signals (%s)</string>
+    <string name="notification_alert_started">%1$s: Air raid alert announced!%2$s</string>
+    <string name="notification_alert_cleared">%s: All clear announced.</string>
+    <string name="data_source_attribution">Data: Air raid alert map — NEPTUN</string>
 </resources>

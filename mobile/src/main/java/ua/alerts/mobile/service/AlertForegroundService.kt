@@ -31,6 +31,13 @@ import ua.alerts.shared.model.NeptunAlertsResponse
 import ua.alerts.shared.model.Profile
 import ua.alerts.shared.model.WatchSyncData
 
+private data class MonitoringState(
+    val alerts: NeptunAlertsResponse,
+    val profiles: List<Profile>,
+    val isGlobalEnabled: Boolean,
+    val appLanguage: String
+)
+
 class AlertForegroundService : Service() {
 
     companion object {
@@ -180,10 +187,13 @@ class AlertForegroundService : Service() {
             combine(
                 neptunClient.alertsFlow,
                 settingsRepo.profiles,
-                settingsRepo.globalMonitoring
-            ) { alerts, profiles, isGlobalEnabled ->
-                Triple(alerts, profiles, isGlobalEnabled)
-            }.collect { (alerts, profiles, isGlobalEnabled) ->
+                settingsRepo.globalMonitoring,
+                settingsRepo.appLanguage
+            ) { alerts, profiles, isGlobalEnabled, appLanguage ->
+                MonitoringState(alerts, profiles, isGlobalEnabled, appLanguage)
+            }.collect { state ->
+                val (alerts, profiles, isGlobalEnabled, appLanguage) = state
+                val effectiveLanguage = if (appLanguage == "system") java.util.Locale.getDefault().language else appLanguage
                 val statusMap = mutableMapOf<String, AlertStatus>()
                 for (profile in profiles) {
                     val status = computeAlertStatus(alerts, profile)
@@ -197,7 +207,8 @@ class AlertForegroundService : Service() {
                 val watchSyncData = WatchSyncData(
                     profiles = synchronizedProfiles,
                     statuses = synchronizedStatuses,
-                    updatedAt = System.currentTimeMillis()
+                    updatedAt = System.currentTimeMillis(),
+                    language = appLanguage
                 )
                 AlertRepository.setWatchSyncData(watchSyncData)
 
@@ -213,7 +224,8 @@ class AlertForegroundService : Service() {
                 // Update ongoing service notification
                 val notification = notificationHelper.buildServiceNotification(
                     status = watchStatus,
-                    connectionStatus = neptunClient.connectionStatus.value
+                    connectionStatus = neptunClient.connectionStatus.value,
+                    language = effectiveLanguage
                 )
                 val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID_SERVICE, notification)
@@ -238,7 +250,7 @@ class AlertForegroundService : Service() {
                     } else {
                         if (AlertTransitionEvaluator.shouldNotifyTransition(prevLevel, currentLevel)) {
                             if (isMonitored) {
-                                notificationHelper.notifyAlarmTransition(profile, status)
+                                notificationHelper.notifyAlarmTransition(profile, status, effectiveLanguage)
                             }
                             profileAlertLevels[profile.id] = currentLevel
                         }

@@ -21,6 +21,7 @@ class SettingsRepository(private val context: Context) {
         val KEY_PROFILES_JSON = stringPreferencesKey("profiles_json")
         val KEY_GLOBAL_MONITORING = booleanPreferencesKey("global_monitoring")
         val KEY_SERVICE_ENABLED = booleanPreferencesKey("service_enabled")
+        val KEY_APP_LANGUAGE = stringPreferencesKey("app_language")
 
         private val json = Json {
             ignoreUnknownKeys = true
@@ -46,6 +47,16 @@ class SettingsRepository(private val context: Context) {
     }
 
     val serviceEnabled: Flow<Boolean> = globalMonitoring
+
+    val appLanguage: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_APP_LANGUAGE] ?: "system"
+    }
+
+    suspend fun setAppLanguage(language: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_APP_LANGUAGE] = language
+        }
+    }
 
     suspend fun setGlobalMonitoring(enabled: Boolean) {
         context.dataStore.edit { prefs ->

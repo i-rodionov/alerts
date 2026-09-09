@@ -9,7 +9,8 @@
     <application
         android:name="ua.alerts.wear.WearAlertApp"
         android:allowBackup="true"
-        android:icon="@android:drawable/ic_dialog_alert"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault">
@@ -32,7 +33,7 @@
             android:name="ua.alerts.wear.complication.AlertComplicationService"
             android:exported="true"
             android:label="@string/complication_label"
-            android:icon="@android:drawable/ic_dialog_alert"
+            android:icon="@drawable/ic_warning_siren"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
                 <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />

@@ -1,6 +1,7 @@
 package ua.alerts.shared.model
 
 import kotlinx.serialization.Serializable
+import ua.alerts.shared.data.DefaultRegions
 import java.util.UUID
 
 @Serializable
@@ -21,4 +22,13 @@ data class Profile(
 ) {
     val displayName: String
         get() = districtName ?: regionName
+
+    fun getLocalizedDisplayName(language: String): String =
+        DefaultRegions.getDisplayName(regionId, districtId, language, displayName)
+
+    fun getLocalizedRegionName(language: String): String =
+        DefaultRegions.getRegionName(regionId, language, regionName)
+
+    fun getLocalizedDistrictName(language: String): String? =
+        districtId?.let { DefaultRegions.getDistrictName(it, language, districtName ?: "") }
 }

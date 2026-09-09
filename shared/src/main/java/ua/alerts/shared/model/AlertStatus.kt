@@ -2,6 +2,7 @@ package ua.alerts.shared.model
 
 import kotlinx.serialization.Serializable
 import ua.alerts.shared.constants.WearConstants
+import ua.alerts.shared.data.DefaultRegions
 
 @Serializable
 data class AlertStatus(
@@ -28,4 +29,13 @@ data class AlertStatus(
 
     val displayName: String
         get() = districtName ?: regionName
+
+    fun getLocalizedDisplayName(language: String): String =
+        DefaultRegions.getDisplayName(regionKey, districtKey, language, displayName)
+
+    fun getLocalizedRegionName(language: String): String =
+        DefaultRegions.getRegionName(regionKey, language, regionName)
+
+    fun getLocalizedDistrictName(language: String): String? =
+        districtKey?.let { DefaultRegions.getDistrictName(it, language, districtName ?: "") }
 }

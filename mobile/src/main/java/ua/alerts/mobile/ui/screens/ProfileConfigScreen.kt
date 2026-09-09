@@ -22,6 +22,7 @@ import android.content.Context
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -68,6 +69,7 @@ fun ProfileConfigScreen(
 ) {
     if (profile == null) return
 
+    val locale = LocalConfiguration.current.locales[0]
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -75,7 +77,7 @@ fun ProfileConfigScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (isEditMode) "Налаштування профілю" else "Новий профіль",
+                        text = if (isEditMode) stringResource(R.string.profile_edit_title) else stringResource(R.string.profile_new_title),
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -83,7 +85,7 @@ fun ProfileConfigScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад"
+                            contentDescription = stringResource(R.string.btn_back)
                         )
                     }
                 },
@@ -94,7 +96,7 @@ fun ProfileConfigScreen(
                             enabled = profile.regionId.isNotBlank()
                         ) {
                             Text(
-                                text = "Зберегти",
+                                text = stringResource(R.string.btn_save),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -145,7 +147,7 @@ fun ProfileConfigScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = profile.displayName.ifEmpty { stringResource(R.string.region_not_selected) },
+                                text = profile.getLocalizedDisplayName(locale.language).ifEmpty { stringResource(R.string.region_not_selected) },
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -156,7 +158,7 @@ fun ProfileConfigScreen(
                         onClick = onOpenRegionPicker,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(if (profile.regionId.isEmpty()) "Обрати" else "Змінити")
+                        Text(if (profile.regionId.isEmpty()) stringResource(R.string.btn_select) else stringResource(R.string.btn_change))
                     }
                 }
             }
@@ -174,7 +176,7 @@ fun ProfileConfigScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text(
-                        text = "Параметри моніторингу",
+                        text = stringResource(R.string.profile_monitoring_params),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -188,7 +190,7 @@ fun ProfileConfigScreen(
                     )
 
                     ProfileSettingToggle(
-                        label = "Активний на Galaxy Watch",
+                        label = stringResource(R.string.profile_active_on_watch),
                         checked = profile.activeOnWatch,
                         onCheckedChange = { checked ->
                             onUpdateProfile { it.copy(activeOnWatch = checked) }
@@ -282,7 +284,7 @@ fun ProfileConfigScreen(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Видалити профіль", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.profile_delete), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -291,11 +293,12 @@ fun ProfileConfigScreen(
     }
 
     if (showDeleteConfirmDialog) {
+        val localizedName = profile.getLocalizedDisplayName(locale.language)
         AlertDialog(
             onDismissRequest = { showDeleteConfirmDialog = false },
-            title = { Text("Видалити профіль?") },
+            title = { Text(stringResource(R.string.profile_delete_title)) },
             text = {
-                Text("Ви дійсно бажаєте видалити профіль \"${profile.displayName}\"?")
+                Text(stringResource(R.string.profile_delete_message, localizedName))
             },
             confirmButton = {
                 TextButton(
@@ -305,12 +308,12 @@ fun ProfileConfigScreen(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = DangerRed)
                 ) {
-                    Text("Видалити", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.btn_delete), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmDialog = false }) {
-                    Text("Скасувати")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         )

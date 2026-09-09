@@ -38,4 +38,53 @@
     <string name="notification_sound_alert">Мелодія тривоги</string>
     <string name="notification_sound_clear">Мелодія відбою</string>
     <string name="sound_system_default">Системний за замовчуванням</string>
+
+    <!-- Global settings -->
+    <string name="settings_global_title">Загальні налаштування</string>
+    <string name="settings_global_monitoring">Глобальний моніторинг</string>
+    <string name="settings_global_monitoring_on">Фоновий моніторинг увімкнено для налаштованих профілів</string>
+    <string name="settings_global_monitoring_off">Моніторинг вимкнено для всіх профілів</string>
+    <string name="settings_language_title">Мова додатку</string>
+    <string name="settings_language_description">Оберіть мову відображення додатку</string>
+    <string name="language_system">Системна за замовчуванням</string>
+    <string name="language_uk">Українська</string>
+    <string name="language_en">English</string>
+    <string name="btn_sync">Синхр.</string>
+
+    <!-- Profile configuration -->
+    <string name="profile_edit_title">Налаштування профілю</string>
+    <string name="profile_new_title">Новий профіль</string>
+    <string name="btn_save">Зберегти</string>
+    <string name="btn_select">Обрати</string>
+    <string name="btn_change">Змінити</string>
+    <string name="profile_monitoring_params">Параметри моніторингу</string>
+    <string name="profile_active_on_watch">Активний на Galaxy Watch</string>
+    <string name="profile_delete">Видалити профіль</string>
+    <string name="profile_delete_title">Видалити профіль?</string>
+    <string name="profile_delete_message">Ви дійсно бажаєте видалити профіль \"%s\"?</string>
+    <string name="btn_delete">Видалити</string>
+    <string name="btn_cancel">Скасувати</string>
+
+    <!-- Region selector & dashboard -->
+    <string name="raions_count">%d районів</string>
+    <string name="btn_clear">Очистити</string>
+    <string name="item_selected">Обрано</string>
+    <string name="btn_back">Назад</string>
+    <string name="action_active_on_watch">Активний на годиннику</string>
+    <string name="badge_live">Live</string>
+    <string name="badge_connecting">…</string>
+    <string name="badge_syncing">Sync…</string>
+    <string name="badge_error">Error</string>
+    <string name="badge_off">Off</string>
+    <string name="add_profile">Додати регіон</string>
+    <string name="empty_profiles_title">Немає доданих профілів</string>
+    <string name="empty_profiles_desc">Додайте область або район для моніторингу повітряних тривог</string>
+    <string name="add_profile_button">Додати профіль</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_alert_desc">Сповіщення про початок або зміну повітряної тривоги (%s)</string>
+    <string name="notification_channel_clear_desc">Сповіщення про відбій повітряної тривоги (%s)</string>
+    <string name="notification_alert_started">%1$s: Оголошено повітряну тривогу!%2$s</string>
+    <string name="notification_alert_cleared">%s: Відбій повітряної тривоги.</string>
+    <string name="data_source_attribution">Дані: Карта повітряних тривог — NEPTUN</string>
 </resources>

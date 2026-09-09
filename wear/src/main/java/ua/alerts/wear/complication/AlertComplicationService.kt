@@ -1,7 +1,10 @@
 package ua.alerts.wear.complication
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import java.util.Locale
 import android.graphics.drawable.Icon
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationType
@@ -18,22 +21,40 @@ import ua.alerts.wear.ui.WearMainActivity
 
 class AlertComplicationService : SuspendingComplicationDataSourceService() {
 
+    private fun getLocalizedContext(repoLanguage: String?): Context {
+        if (repoLanguage.isNullOrEmpty() || repoLanguage == "system") {
+            return this
+        }
+        val locale = Locale(repoLanguage)
+        val config = Configuration(resources.configuration).apply {
+            setLocale(locale)
+        }
+        return createConfigurationContext(config)
+    }
+
     override fun getPreviewData(type: ComplicationType): ComplicationData? {
+        val repo = try {
+            WearAlertApp.instance.alertRepository
+        } catch (_: Exception) {
+            null
+        }
+        val syncLanguage = repo?.syncData?.value?.language ?: "system"
+        val localizedContext = getLocalizedContext(syncLanguage)
         val iconRes = R.drawable.ic_warning_siren
         val icon = MonochromaticImage.Builder(Icon.createWithResource(this, iconRes)).build()
 
         return when (type) {
             ComplicationType.SHORT_TEXT -> {
-                val text = PlainComplicationText.Builder(getString(R.string.complication_preview_text)).build()
-                val title = PlainComplicationText.Builder(getString(R.string.complication_preview_title)).build()
+                val text = PlainComplicationText.Builder(localizedContext.getString(R.string.complication_preview_text)).build()
+                val title = PlainComplicationText.Builder(localizedContext.getString(R.string.complication_preview_title)).build()
                 ShortTextComplicationData.Builder(text, text)
                     .setTitle(title)
                     .setMonochromaticImage(icon)
                     .build()
             }
             ComplicationType.LONG_TEXT -> {
-                val text = PlainComplicationText.Builder(getString(R.string.status_alarm)).build()
-                val title = PlainComplicationText.Builder(getString(R.string.complication_preview_title)).build()
+                val text = PlainComplicationText.Builder(localizedContext.getString(R.string.status_alarm)).build()
+                val title = PlainComplicationText.Builder(localizedContext.getString(R.string.complication_preview_title)).build()
                 LongTextComplicationData.Builder(text, text)
                     .setTitle(title)
                     .setMonochromaticImage(icon)
@@ -49,6 +70,9 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
         } catch (_: Exception) {
             null
         }
+
+        val syncLanguage = repo?.syncData?.value?.language ?: "system"
+        val localizedContext = getLocalizedContext(syncLanguage)
 
         val configuredProfileId = repo?.getComplicationProfileId(request.complicationInstanceId)
         val profile = repo?.getProfile(configuredProfileId)
@@ -69,9 +93,9 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
         // Offline if unconfigured, or profile removed/unsynchronized, or status missing/stale
         val isOffline = configuredProfileId == null || profile == null || status == null || status.isStale()
         val isAlarm = !isOffline && status?.isAlarm == true
-        val regionName = profile?.displayName?.ifEmpty { getString(R.string.app_name) }
-            ?: status?.displayName?.ifEmpty { getString(R.string.app_name) }
-            ?: getString(R.string.app_name)
+        val regionName = profile?.getLocalizedDisplayName(syncLanguage)?.ifEmpty { localizedContext.getString(R.string.app_name) }
+            ?: status?.getLocalizedDisplayName(syncLanguage)?.ifEmpty { localizedContext.getString(R.string.app_name) }
+            ?: localizedContext.getString(R.string.app_name)
 
         val iconRes = when {
             isOffline -> R.drawable.ic_offline_warning
@@ -90,9 +114,9 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
                 }
                 val titleStr = when {
                     isOffline -> "⚠️"
-                    status?.isYellow == true -> "ЖОВ"
-                    status?.isRed == true -> "ТРВ"
-                    else -> "ОК"
+                    status?.isYellow == true -> localizedContext.getString(R.string.complication_short_yellow)
+                    status?.isRed == true -> localizedContext.getString(R.string.complication_short_red)
+                    else -> localizedContext.getString(R.string.complication_short_ok)
                 }
                 val text = PlainComplicationText.Builder(textStr).build()
                 val title = PlainComplicationText.Builder(titleStr).build()
@@ -105,10 +129,10 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             }
             ComplicationType.LONG_TEXT -> {
                 val headerStr = when {
-                    isOffline -> getString(R.string.status_offline)
-                    status?.isYellow == true -> "🟡 " + (status.reasons.firstOrNull() ?: getString(R.string.status_alarm_yellow))
-                    status?.isRed == true -> "🔴 " + (status.reasons.firstOrNull() ?: getString(R.string.status_alarm_red))
-                    else -> "🟢 " + getString(R.string.status_clear)
+                    isOffline -> localizedContext.getString(R.string.status_offline)
+                    status?.isYellow == true -> "🟡 " + (status.reasons.firstOrNull() ?: localizedContext.getString(R.string.status_alarm_yellow))
+                    status?.isRed == true -> "🔴 " + (status.reasons.firstOrNull() ?: localizedContext.getString(R.string.status_alarm_red))
+                    else -> "🟢 " + localizedContext.getString(R.string.status_clear)
                 }
                 val text = PlainComplicationText.Builder(headerStr).build()
                 val title = PlainComplicationText.Builder(regionName).build()

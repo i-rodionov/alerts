@@ -35,7 +35,8 @@ class NotificationHelper(private val context: Context) {
 
     fun buildServiceNotification(
         status: AlertStatus? = null,
-        connectionStatus: ConnectionStatus = ConnectionStatus.CONNECTED
+        connectionStatus: ConnectionStatus = ConnectionStatus.CONNECTED,
+        language: String = java.util.Locale.getDefault().language
     ): Notification {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -66,7 +67,7 @@ class NotificationHelper(private val context: Context) {
             context.getString(R.string.app_name)
         }
 
-        val regionPrefix = if (hasStatus) "${status!!.displayName} • " else ""
+        val regionPrefix = if (hasStatus) "${status!!.getLocalizedDisplayName(language)} • " else ""
         val text = "$regionPrefix${context.getString(R.string.monitoring_active)} [$connText]"
 
         val smallIcon = if (hasStatus && status!!.isAlarm) {
@@ -109,7 +110,11 @@ class NotificationHelper(private val context: Context) {
         return (uriString ?: "default").hashCode().toString()
     }
 
-    fun getOrCreateProfileChannel(profile: Profile, isAlarm: Boolean): String {
+    fun getOrCreateProfileChannel(
+        profile: Profile,
+        isAlarm: Boolean,
+        language: String = java.util.Locale.getDefault().language
+    ): String {
         val soundUriString = if (isAlarm) profile.alertSoundUri else profile.clearSoundUri
         val hash = soundHash(soundUriString)
         val prefix = if (isAlarm) "alerts" else "clear"
@@ -137,7 +142,8 @@ class NotificationHelper(private val context: Context) {
             } else {
                 context.getString(R.string.status_clear)
             }
-            val channelName = "$channelNamePrefix: ${profile.displayName}"
+            val displayName = profile.getLocalizedDisplayName(language)
+            val channelName = "$channelNamePrefix: $displayName"
             val soundUri = resolveSoundUri(soundUriString)
 
             val audioAttributes = AudioAttributes.Builder()
@@ -147,9 +153,9 @@ class NotificationHelper(private val context: Context) {
 
             val channel = NotificationChannel(channelId, channelName, importance).apply {
                 description = if (isAlarm) {
-                    "Сповіщення про початок або зміну повітряної тривоги (${profile.displayName})"
+                    context.getString(R.string.notification_channel_alert_desc, displayName)
                 } else {
-                    "Сповіщення про відбій повітряної тривоги (${profile.displayName})"
+                    context.getString(R.string.notification_channel_clear_desc, displayName)
                 }
                 setSound(soundUri, audioAttributes)
                 enableVibration(false)
@@ -175,7 +181,8 @@ class NotificationHelper(private val context: Context) {
 
     fun notifyAlarmTransition(
         profile: Profile,
-        status: AlertStatus
+        status: AlertStatus,
+        language: String = java.util.Locale.getDefault().language
     ) {
         val sound = if (status.isAlarm) profile.soundOnAlarm else profile.soundOnClear
         val vibrate = if (status.isAlarm) profile.vibrateOnAlarm else profile.vibrateOnClear
@@ -190,7 +197,7 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val channelId = getOrCreateProfileChannel(profile, status.isAlarm)
+        val channelId = getOrCreateProfileChannel(profile, status.isAlarm, language)
         val title = if (status.isAlarm) {
             if (status.isYellow) {
                 "🟡 " + context.getString(R.string.status_alarm_yellow)
@@ -201,11 +208,12 @@ class NotificationHelper(private val context: Context) {
             "🟢 " + context.getString(R.string.status_clear)
         }
 
+        val displayName = profile.getLocalizedDisplayName(language)
         val reasonSuffix = if (status.isAlarm && status.reasons.isNotEmpty()) " (${status.reasons.joinToString(", ")})" else ""
         val message = if (status.isAlarm) {
-            "${profile.displayName}: Оголошено повітряну тривогу!$reasonSuffix"
+            context.getString(R.string.notification_alert_started, displayName, reasonSuffix)
         } else {
-            "${profile.displayName}: Відбій повітряної тривоги."
+            context.getString(R.string.notification_alert_cleared, displayName)
         }
 
         val builder = NotificationCompat.Builder(context, channelId)

@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -115,6 +116,7 @@ fun WearProfileListScreen(
     onProfileClick: (Profile) -> Unit,
     onSyncClick: () -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     val listState = rememberScalingLazyListState()
 
     ScalingLazyColumn(
@@ -179,7 +181,7 @@ fun WearProfileListScreen(
                     onClick = { onProfileClick(profile) },
                     label = {
                         Text(
-                            text = profile.displayName,
+                            text = profile.getLocalizedDisplayName(locale.language),
                             maxLines = 1,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium

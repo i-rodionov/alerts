@@ -34,6 +34,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val globalMonitoring: StateFlow<Boolean> = settingsRepo.globalMonitoring
         .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
+    val appLanguage: StateFlow<String> = settingsRepo.appLanguage
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "system")
+
     val profileAlerts: StateFlow<Map<String, AlertStatus>> = AlertRepository.profileAlerts
     val connectionStatus: StateFlow<ConnectionStatus> = AlertRepository.connectionStatus
     val connectedWatchCount: StateFlow<Int> = AlertRepository.connectedWatchCount
@@ -142,6 +145,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 AlertForegroundService.stopService(getApplication())
             }
+        }
+    }
+
+    fun setAppLanguage(language: String) {
+        viewModelScope.launch {
+            settingsRepo.setAppLanguage(language)
         }
     }
 

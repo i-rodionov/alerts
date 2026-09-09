@@ -13,9 +13,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Watch
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,7 +46,9 @@ import ua.alerts.mobile.ui.theme.SafeGreen
 fun GlobalSettingsScreen(
     globalMonitoring: Boolean,
     connectedWatchCount: Int,
+    appLanguage: String,
     onToggleGlobalMonitoring: (Boolean) -> Unit,
+    onSelectLanguage: (String) -> Unit,
     onSyncWatch: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -51,15 +57,15 @@ fun GlobalSettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Загальні налаштування",
+                        text = stringResource(R.string.settings_global_title),
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Назад"
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.btn_back)
                         )
                     }
                 }
@@ -91,16 +97,16 @@ fun GlobalSettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Глобальний моніторинг",
+                            text = stringResource(R.string.settings_global_monitoring),
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (globalMonitoring) {
-                                "Фоновий моніторинг увімкнено для налаштованих профілів"
+                                stringResource(R.string.settings_global_monitoring_on)
                             } else {
-                                "Моніторинг вимкнено для всіх профілів"
+                                stringResource(R.string.settings_global_monitoring_off)
                             },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
@@ -111,6 +117,76 @@ fun GlobalSettingsScreen(
                         checked = globalMonitoring,
                         onCheckedChange = onToggleGlobalMonitoring
                     )
+                }
+            }
+
+            // Language Selection Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text(
+                                text = stringResource(R.string.settings_language_title),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_language_description),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    val languageOptions = listOf(
+                        "system" to stringResource(R.string.language_system),
+                        "uk" to stringResource(R.string.language_uk),
+                        "en" to stringResource(R.string.language_en)
+                    )
+
+                    languageOptions.forEachIndexed { index, (key, label) ->
+                        if (index > 0) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                        }
+                        val isSelected = appLanguage == key
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelectLanguage(key) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onSelectLanguage(key) }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -152,7 +228,7 @@ fun GlobalSettingsScreen(
                     }
 
                     OutlinedButton(onClick = onSyncWatch) {
-                        Text("Синхр.")
+                        Text(stringResource(R.string.btn_sync))
                     }
                 }
             }

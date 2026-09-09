@@ -367,6 +367,37 @@ object DefaultRegions {
         return ALL_REGIONS.flatMap { it.raions }.firstOrNull { it.id == key || it.neptunKey == key }
     }
 
+    fun getRegionName(id: String, language: String, fallback: String = ""): String {
+        val region = findRegion(id) ?: return fallback.ifEmpty { id }
+        return if (language.startsWith("en", ignoreCase = true)) region.nameEn else region.nameUk
+    }
+
+    fun getDistrictName(id: String, language: String, fallback: String = ""): String {
+        val district = findDistrict(id) ?: return fallback.ifEmpty { id }
+        return if (language.startsWith("en", ignoreCase = true)) district.nameEn else district.nameUk
+    }
+
+    fun getDisplayName(
+        regionId: String,
+        districtId: String?,
+        language: String,
+        fallback: String = ""
+    ): String {
+        if (!districtId.isNullOrBlank()) {
+            val dist = findDistrict(districtId)
+            if (dist != null) {
+                return if (language.startsWith("en", ignoreCase = true)) dist.nameEn else dist.nameUk
+            }
+        }
+        if (regionId.isNotBlank()) {
+            val reg = findRegion(regionId)
+            if (reg != null) {
+                return if (language.startsWith("en", ignoreCase = true)) reg.nameEn else reg.nameUk
+            }
+        }
+        return fallback
+    }
+
     fun computeAlertStatus(
         alerts: NeptunAlertsResponse,
         regionId: String,
@@ -378,6 +409,8 @@ object DefaultRegions {
         val district = districtId?.let { findDistrict(it) }
         val neptunRegionKey = region?.neptunKey
         val neptunDistrictKey = district?.neptunKey
+        val regionNameUk = region?.nameUk ?: regionName
+        val districtNameUk = district?.nameUk ?: districtName
 
         // Workaround for API bug: entries without a non-blank "level" are NOT active alerts
         val activeOblasts = alerts.oblasts.filter { !it.level.isNullOrBlank() }
@@ -388,8 +421,11 @@ object DefaultRegions {
             oblast.key == regionId ||
             (neptunRegionKey != null && oblast.key.equals(neptunRegionKey, ignoreCase = true)) ||
             oblast.name.equals(regionName, ignoreCase = true) ||
+            oblast.name.equals(regionNameUk, ignoreCase = true) ||
             oblast.oblast.equals(regionName, ignoreCase = true) ||
-            regionName.contains(oblast.key, ignoreCase = true)
+            oblast.oblast.equals(regionNameUk, ignoreCase = true) ||
+            regionName.contains(oblast.key, ignoreCase = true) ||
+            regionNameUk.contains(oblast.key, ignoreCase = true)
         }
 
         var isAlarm = false
@@ -405,13 +441,20 @@ object DefaultRegions {
 
                 val sameOblast = raion.oblast.isBlank() ||
                                  raion.oblast.contains(regionName, ignoreCase = true) ||
-                                 regionName.contains(raion.oblast, ignoreCase = true)
+                                 raion.oblast.contains(regionNameUk, ignoreCase = true) ||
+                                 regionName.contains(raion.oblast, ignoreCase = true) ||
+                                 regionNameUk.contains(raion.oblast, ignoreCase = true)
 
                 val nameMatches = sameOblast && (
                     raion.name.equals(districtName, ignoreCase = true) ||
+                    raion.name.equals(districtNameUk, ignoreCase = true) ||
                     (districtName != null && (
                         raion.key.equals(districtName.substringBefore(" ").trim(), ignoreCase = true) ||
                         districtName.contains(raion.key, ignoreCase = true)
+                    )) ||
+                    (districtNameUk != null && (
+                        raion.key.equals(districtNameUk.substringBefore(" ").trim(), ignoreCase = true) ||
+                        districtNameUk.contains(raion.key, ignoreCase = true)
                     ))
                 )
 
@@ -434,7 +477,9 @@ object DefaultRegions {
                 raion.key.startsWith("$regionId:") ||
                 (neptunRegionKey != null && raion.key.startsWith("$neptunRegionKey:")) ||
                 raion.oblast.contains(regionName, ignoreCase = true) ||
-                regionName.contains(raion.oblast, ignoreCase = true)
+                raion.oblast.contains(regionNameUk, ignoreCase = true) ||
+                regionName.contains(raion.oblast, ignoreCase = true) ||
+                regionNameUk.contains(raion.oblast, ignoreCase = true)
             }
 
             if (matchingOblast != null || matchingRaions.isNotEmpty()) {

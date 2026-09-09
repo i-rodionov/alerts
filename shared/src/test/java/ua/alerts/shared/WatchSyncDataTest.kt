@@ -51,7 +51,8 @@ class WatchSyncDataTest {
         val syncData = WatchSyncData(
             profiles = listOf(profileA, profileB),
             statuses = mapOf("profile-a" to statusA, "profile-b" to statusB),
-            updatedAt = 123456789L
+            updatedAt = 123456789L,
+            language = "uk"
         )
 
         val encoded = json.encodeToString(WatchSyncData.serializer(), syncData)
@@ -61,6 +62,7 @@ class WatchSyncDataTest {
         assertEquals("profile-a", decoded.profiles[0].id)
         assertEquals("profile-b", decoded.profiles[1].id)
         assertEquals(123456789L, decoded.updatedAt)
+        assertEquals("uk", decoded.language)
 
         val decodedStatusA = decoded.statuses["profile-a"]
         assertNotNull(decodedStatusA)
