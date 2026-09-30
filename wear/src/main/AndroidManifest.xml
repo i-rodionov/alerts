@@ -1,15 +1,9 @@
-<!--suppress ALL -->
-<!-- noinspection ALL -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    tools:ignore="all">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-feature android:name="android.hardware.type.watch" />
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!--suppress ALL -->
-    <!-- noinspection ALL -->
     <application
         android:name="ua.alerts.wear.WearAlertApp"
         android:allowBackup="true"
@@ -17,35 +11,28 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault"
-        tools:ignore="all">
+        android:theme="@android:style/Theme.DeviceDefault">
 
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="false" />
 
-        <!--suppress ALL -->
-        <!-- noinspection ALL -->
         <activity
             android:name="ua.alerts.wear.ui.WearMainActivity"
             android:exported="true"
-            android:taskAffinity="ua.alerts.wear"
-            tools:ignore="all">
+            android:taskAffinity="ua.alerts.wear">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!--suppress ALL -->
-        <!-- noinspection ALL -->
         <service
             android:name="ua.alerts.wear.complication.AlertComplicationService"
             android:exported="true"
             android:label="@string/complication_label"
             android:icon="@drawable/ic_warning_siren"
-            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER"
-            tools:ignore="all">
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
                 <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
             </intent-filter>
@@ -61,13 +48,12 @@
                 android:value="ua.alerts.wear.action.CONFIG_COMPLICATION" />
         </service>
 
-        <!--suppress ALL -->
-        <!-- noinspection ALL -->
         <activity
             android:name="ua.alerts.wear.complication.ComplicationConfigActivity"
             android:exported="true"
-            android:label="@string/select_region"
-            tools:ignore="all">
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:label="@string/select_region">
             <intent-filter>
                 <action android:name="ua.alerts.wear.action.CONFIG_COMPLICATION" />
                 <category android:name="android.support.wearable.complications.category.PROVIDER_CONFIG" />
@@ -75,21 +61,15 @@
             </intent-filter>
         </activity>
 
-        <!--suppress ALL -->
-        <!-- noinspection ALL -->
         <service
             android:name="ua.alerts.wear.service.WearDataListenerService"
-            android:exported="true"
-            tools:ignore="all">
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
-                <!--suppress ALL -->
-                <!-- noinspection ALL -->
                 <data
                     android:host="*"
                     android:pathPrefix="/alert_status"
-                    android:scheme="wear"
-                    tools:ignore="all" />
+                    android:scheme="wear" />
             </intent-filter>
         </service>
 

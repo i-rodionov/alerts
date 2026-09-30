@@ -96,9 +96,9 @@ class AlertForegroundService : Service() {
             connectionStatus = ConnectionStatus.CONNECTING
         )
 
-        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-        } else {
+        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            }  else {
             0
         }
         ServiceCompat.startForeground(
@@ -116,12 +116,7 @@ class AlertForegroundService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 stopMonitoring()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                } else {
-                    @Suppress("DEPRECATION")
-                    stopForeground(true)
-                }
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -148,7 +143,7 @@ class AlertForegroundService : Service() {
         stopMonitoring()
         serviceScope.cancel()
         AlertRepository.setServiceRunning(false)
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(NotificationHelper.NOTIFICATION_ID_SERVICE)
         super.onDestroy()
     }
@@ -167,7 +162,7 @@ class AlertForegroundService : Service() {
                         status = AlertRepository.alertStatus.value,
                         connectionStatus = status
                     )
-                    val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                     manager.notify(NotificationHelper.NOTIFICATION_ID_SERVICE, notification)
                 }
             }
@@ -227,7 +222,7 @@ class AlertForegroundService : Service() {
                     connectionStatus = neptunClient.connectionStatus.value,
                     language = effectiveLanguage
                 )
-                val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                 manager.notify(NotificationHelper.NOTIFICATION_ID_SERVICE, notification)
 
                 // Sync all synchronized profiles to Wear OS
