@@ -23,7 +23,7 @@
   - Підтримка української та англійської мов із можливістю явного перемикання в налаштуваннях або використання системної мови за замовчуванням.
   - Форматування часу подій у часовому поясі пристрою (час доби для сьогоднішніх подій, дата + час для попередніх).
 - **Фонова служба переднього плану (Foreground Service)**:
-  - Працює з `foregroundServiceType="dataSync"` (Target SDK 35).
+  - Працює з `foregroundServiceType="specialUse"` (Target SDK 35), що запобігає примусовій зупинці служби системою через 6 годин (ліміт для `dataSync` в Android 15) та забезпечує цілодобовий безперервний моніторинг тривог.
   - Підтримує постійне WebSocket-з'єднання з сервером NEPTUN незалежно від стану активності, блокування екрана чи вивантаження UI з останніх задач.
   - Автоматичне перепідключення з експоненційним бекоффом (від 2 до 30 секунд).
   - REST fallback (`GET /api/v1/alerts`) під час перепідключення для актуалізації статусу.
@@ -77,7 +77,7 @@
 │ AlertRepository (In-memory StateFlow)   │         │                   │                 │
 │                   ▲                     │         │                   ▼                 │
 │                   │                     │         │ WatchAlertRepository (Cache)        │
-│ AlertForegroundService (FGS dataSync)   │         │                   ▲                 │
+│ AlertForegroundService (FGS specialUse) │         │                   ▲                 │
 │  ├── NeptunClient (WebSocket + REST)    │         │                   │                 │
 │  ├── NotificationHelper (Sound/Vibro)   │         │ WearDataListenerService             │
 │  └── WearSyncManager (DataClient)       │◄───────►│  (Wearable Data Layer /alert_status)│
