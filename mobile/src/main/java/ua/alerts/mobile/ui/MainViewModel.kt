@@ -67,7 +67,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (profileId == null) {
             _draftProfile.value = Profile(
                 backgroundMonitoring = true,
-                activeOnWatch = profiles.value.isEmpty(),
+                activeOnWatch = true,
                 soundOnAlarm = true,
                 vibrateOnAlarm = true,
                 soundOnClear = true,
@@ -128,12 +128,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settingsRepo.deleteProfile(profileId)
             NotificationHelper(getApplication()).deleteProfileChannels(profileId)
             navigateBack()
-        }
-    }
-
-    fun setActiveWatchProfile(profileId: String) {
-        viewModelScope.launch {
-            settingsRepo.setActiveWatchProfile(profileId)
         }
     }
 

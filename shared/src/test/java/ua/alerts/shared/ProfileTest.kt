@@ -1,6 +1,5 @@
 package ua.alerts.shared
 
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,7 +20,7 @@ class ProfileTest {
         assertEquals(null, profile.districtId)
         assertEquals(null, profile.districtName)
         assertTrue(profile.backgroundMonitoring)
-        assertFalse(profile.activeOnWatch)
+        assertTrue(profile.activeOnWatch)
         assertTrue(profile.soundOnAlarm)
         assertTrue(profile.vibrateOnAlarm)
         assertTrue(profile.soundOnClear)
@@ -94,5 +93,16 @@ class ProfileTest {
         assertEquals(1, deserialized.size)
         assertEquals("content://media/internal/audio/media/42", deserialized[0].alertSoundUri)
         assertEquals("content://media/internal/audio/media/99", deserialized[0].clearSoundUri)
+    }
+
+    @Test
+    fun testMultipleProfilesDefaultToActiveOnWatch() {
+        val firstProfile = Profile(regionName = "Київ")
+        val secondProfile = Profile(regionName = "Львівська область")
+        val thirdProfile = Profile(regionName = "Полтавська область", districtName = "Полтавський район")
+
+        assertTrue(firstProfile.activeOnWatch)
+        assertTrue(secondProfile.activeOnWatch)
+        assertTrue(thirdProfile.activeOnWatch)
     }
 }

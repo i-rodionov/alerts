@@ -12,7 +12,7 @@ data class Profile(
     val districtId: String? = null,
     val districtName: String? = null,
     val backgroundMonitoring: Boolean = true,
-    val activeOnWatch: Boolean = false,
+    val activeOnWatch: Boolean = true,
     val soundOnAlarm: Boolean = true,
     val vibrateOnAlarm: Boolean = true,
     val soundOnClear: Boolean = true,
