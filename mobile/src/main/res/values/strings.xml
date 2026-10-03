@@ -90,4 +90,13 @@
     <string name="neptun_disclaimer_short">NEPTUN — інформаційний агрегатор, а не офіційна система оповіщення. Завжди орієнтуйтеся на офіційні сигнали повітряної тривоги.</string>
     <string name="settings_about_data_source_title">Джерело даних та застереження</string>
     <string name="neptun_disclaimer_full">Дані формуються з відкритих і сторонніх джерел та можуть містити неточності або затримки. Застосунок не є офіційною системою оповіщення і не замінює державні сигнали повітряної тривоги цивільного захисту.</string>
+
+    <!-- Battery optimization & background reliability -->
+    <string name="settings_battery_title">Надійність фонової роботи</string>
+    <string name="settings_battery_desc">Для безперебійної роботи після перезавантаження та своєчасного отримання тривог рекомендується вимкнути оптимізацію заряду акумулятора.</string>
+    <string name="settings_battery_status_optimized">Оптимізацію увімкнено (система може блокувати сповіщення або автозапуск)</string>
+    <string name="settings_battery_status_unrestricted">Не обмежено (рекомендовано)</string>
+    <string name="settings_battery_btn_disable">Вимкнути обмеження</string>
+    <string name="settings_battery_badge_warning">Увага</string>
+    <string name="settings_battery_badge_ok">ОК</string>
 </resources>

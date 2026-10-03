@@ -90,4 +90,13 @@
     <string name="neptun_disclaimer_short">NEPTUN is an informational aggregator, not an official warning system. Always rely on official air-raid warning signals.</string>
     <string name="settings_about_data_source_title">Data Source &amp; Disclaimer</string>
     <string name="neptun_disclaimer_full">Data is collected from open and third-party sources and may have delays or inaccuracies. The app is not an official alert system and does not replace civil protection air raid sirens or notifications.</string>
+
+    <!-- Battery optimization & background reliability -->
+    <string name="settings_battery_title">Background Reliability</string>
+    <string name="settings_battery_desc">To ensure uninterrupted operation after phone reboot and timely alarm delivery, it is recommended to exempt the app from battery optimization.</string>
+    <string name="settings_battery_status_optimized">Optimized (system may suppress alerts or background launch)</string>
+    <string name="settings_battery_status_unrestricted">Unrestricted (Recommended)</string>
+    <string name="settings_battery_btn_disable">Disable optimization</string>
+    <string name="settings_battery_badge_warning">Warning</string>
+    <string name="settings_battery_badge_ok">OK</string>
 </resources>

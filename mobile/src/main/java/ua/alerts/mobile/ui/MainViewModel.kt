@@ -14,6 +14,7 @@ import ua.alerts.mobile.data.ConnectionStatus
 import ua.alerts.mobile.data.SettingsRepository
 import ua.alerts.mobile.notification.NotificationHelper
 import ua.alerts.mobile.service.AlertForegroundService
+import ua.alerts.mobile.util.BatteryOptimizationHelper
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.Profile
 
@@ -41,6 +42,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val connectionStatus: StateFlow<ConnectionStatus> = AlertRepository.connectionStatus
     val connectedWatchCount: StateFlow<Int> = AlertRepository.connectedWatchCount
     val isServiceRunning: StateFlow<Boolean> = AlertRepository.isServiceRunning
+
+    private val _isBatteryOptimizationIgnored = MutableStateFlow(
+        BatteryOptimizationHelper.isIgnoringBatteryOptimizations(application)
+    )
+    val isBatteryOptimizationIgnored: StateFlow<Boolean> = _isBatteryOptimizationIgnored.asStateFlow()
+
+    fun refreshBatteryOptimizationStatus() {
+        _isBatteryOptimizationIgnored.value =
+            BatteryOptimizationHelper.isIgnoringBatteryOptimizations(getApplication())
+    }
 
     private val screenBackstack = mutableListOf<Screen>(Screen.Dashboard)
     private val _currentScreen = MutableStateFlow<Screen>(Screen.Dashboard)

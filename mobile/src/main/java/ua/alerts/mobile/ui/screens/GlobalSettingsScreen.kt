@@ -18,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Watch
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextDecoration
@@ -50,9 +52,11 @@ fun GlobalSettingsScreen(
     globalMonitoring: Boolean,
     connectedWatchCount: Int,
     appLanguage: String,
+    isBatteryOptimizationIgnored: Boolean = true,
     onToggleGlobalMonitoring: (Boolean) -> Unit,
     onSelectLanguage: (String) -> Unit,
     onSyncWatch: () -> Unit,
+    onRequestDisableBatteryOptimization: () -> Unit = {},
     onBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
@@ -122,6 +126,90 @@ fun GlobalSettingsScreen(
                         checked = globalMonitoring,
                         onCheckedChange = onToggleGlobalMonitoring
                     )
+                }
+            }
+
+            // Background Reliability & Battery Optimization Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = if (isBatteryOptimizationIgnored) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = if (isBatteryOptimizationIgnored) SafeGreen else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_battery_title),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isBatteryOptimizationIgnored) SafeGreen.copy(alpha = 0.2f) else MaterialTheme.colorScheme.error.copy(alpha = 0.2f)
+                            )
+                        ) {
+                            Text(
+                                text = if (isBatteryOptimizationIgnored) {
+                                    stringResource(R.string.settings_battery_badge_ok)
+                                } else {
+                                    stringResource(R.string.settings_battery_badge_warning)
+                                },
+                                color = if (isBatteryOptimizationIgnored) SafeGreen else MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if (isBatteryOptimizationIgnored) {
+                            stringResource(R.string.settings_battery_status_unrestricted)
+                        } else {
+                            stringResource(R.string.settings_battery_status_optimized)
+                        },
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isBatteryOptimizationIgnored) SafeGreen else MaterialTheme.colorScheme.error,
+                        fontSize = 13.sp
+                    )
+
+                    Text(
+                        text = stringResource(R.string.settings_battery_desc),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+
+                    if (!isBatteryOptimizationIgnored) {
+                        OutlinedButton(
+                            onClick = onRequestDisableBatteryOptimization,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = stringResource(R.string.settings_battery_btn_disable))
+                        }
+                    }
                 }
             }
 

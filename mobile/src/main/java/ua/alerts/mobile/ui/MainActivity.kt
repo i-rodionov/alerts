@@ -30,11 +30,13 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import ua.alerts.mobile.service.AlertForegroundService
+import ua.alerts.mobile.util.BatteryOptimizationHelper
 import ua.alerts.mobile.ui.screens.DashboardScreen
 import ua.alerts.mobile.ui.screens.GlobalSettingsScreen
 import ua.alerts.mobile.ui.screens.ProfileConfigScreen
 import ua.alerts.mobile.ui.screens.RegionSelectScreen
 import ua.alerts.mobile.ui.theme.AlertsTheme
+import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
 
@@ -80,7 +82,8 @@ class MainActivity : ComponentActivity() {
     private fun launchSoundPicker(target: SoundTarget, currentUriString: String?) {
         pendingSoundPickerTarget = target
         val currentUri = if (!currentUriString.isNullOrBlank()) {
-            try { Uri.parse(currentUriString) } catch (_: Exception) { null }
+            try {
+                currentUriString.toUri() } catch (_: Exception) { null }
         } else {
             null
         }
@@ -95,6 +98,11 @@ class MainActivity : ComponentActivity() {
             putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, getString(titleRes))
         }
         ringtonePickerLauncher.launch(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshBatteryOptimizationStatus()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,8 +123,8 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val locale = remember(appLanguage) {
                 when (appLanguage) {
-                    "uk" -> Locale("uk")
-                    "en" -> Locale("en")
+                    "uk" -> Locale.forLanguageTag("uk")
+                    "en" -> Locale.forLanguageTag("en")
                     else -> Locale.getDefault()
                 }
             }
@@ -170,14 +178,25 @@ class MainActivity : ComponentActivity() {
                             is Screen.GlobalSettings -> {
                                 val globalMonitoring by viewModel.globalMonitoring.collectAsState()
                                 val connectedWatchCount by viewModel.connectedWatchCount.collectAsState()
+                                val isBatteryOptimizationIgnored by viewModel.isBatteryOptimizationIgnored.collectAsState()
 
                                 GlobalSettingsScreen(
                                     globalMonitoring = globalMonitoring,
                                     connectedWatchCount = connectedWatchCount,
                                     appLanguage = appLanguage,
+                                    isBatteryOptimizationIgnored = isBatteryOptimizationIgnored,
                                     onToggleGlobalMonitoring = { viewModel.setGlobalMonitoring(it) },
                                     onSelectLanguage = { viewModel.setAppLanguage(it) },
                                     onSyncWatch = { viewModel.refreshData() },
+                                    onRequestDisableBatteryOptimization = {
+                                        try {
+                                            startActivity(
+                                                BatteryOptimizationHelper.createRequestIgnoreBatteryOptimizationsIntent(this@MainActivity)
+                                            )
+                                        } catch (_: Exception) {
+                                            // Ignore if activity cannot be launched
+                                        }
+                                    },
                                     onBack = { viewModel.navigateBack() }
                                 )
                             }
