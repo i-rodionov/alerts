@@ -15,6 +15,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.OkHttpClient
@@ -217,7 +218,7 @@ class NeptunClient(
             // Attempt REST snapshot fallback while disconnected
             fetchAlertsSnapshot()
 
-            delay(delayMs)
+            delay(delayMs.milliseconds)
             if (!isStarted || !isActive) return@launch
 
             reconnectJob = null
