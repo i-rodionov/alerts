@@ -141,6 +141,8 @@
 ### Вимоги до середовища
 - **OS**: Windows (підтримується також macOS / Linux).
 - **JDK**: Java 17.
+- **Kotlin**: 2.4.20.
+- **AGP / Gradle**: AGP 9.2.1, Gradle 9.4.1.
 - **Android SDK**: `compileSdk = 36`, `minSdk = 26` (Mobile) / `30` (Wear), `targetSdk = 36`.
 
 Перед виконанням команд у PowerShell обов'язково встановлюйте шлях до JDK:
