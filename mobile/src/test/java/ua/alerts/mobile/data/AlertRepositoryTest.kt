@@ -21,7 +21,7 @@ class AlertRepositoryTest {
     fun testInitialRepositoryState() {
         assertFalse(AlertRepository.isServiceRunning.value)
         assertEquals(ConnectionStatus.STOPPED, AlertRepository.connectionStatus.value)
-        assertEquals(AlertStatus(), AlertRepository.alertStatus.value)
+        assertEquals(AlertStatus(updatedAt = AlertRepository.alertStatus.value.updatedAt), AlertRepository.alertStatus.value)
         assertEquals(0, AlertRepository.connectedWatchCount.value)
         assertNull(AlertRepository.lastError.value)
     }

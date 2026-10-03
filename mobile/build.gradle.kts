@@ -41,12 +41,12 @@ val isReleaseSigningConfigured = !releaseStoreFile.isNullOrBlank() &&
 
 android {
     namespace = "ua.alerts.mobile"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "ua.alerts.neptun"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.1"
 
