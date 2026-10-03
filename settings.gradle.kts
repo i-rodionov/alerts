@@ -16,5 +16,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "Alerts"
 include(":shared")
+include(":core-android")
 include(":mobile")
 include(":wear")

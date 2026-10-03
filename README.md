@@ -98,8 +98,15 @@
   - База 25 областей та районів України (`DefaultRegions`).
   - Утиліта форматування локального часу подій `EventTimeFormatter`.
   - Константи Wearable DataLayer (`WearConstants`).
-- **`:mobile`** — застосунок для смартфона (`ua.alerts.mobile`, namespace `ua.alerts.mobile`, app ID `ua.alerts.neptun`).
-- **`:wear`** — застосунок для Wear OS (`ua.alerts.wear`, namespace `ua.alerts.wear`, app ID `ua.alerts.neptun`).
+  - Контракт та фасад логування (`LogBackend`, `AppLog`) на базі Dependency Inversion із нульовими накладними витратами у релізних збірках (`inline` та `() -> String`).
+- **`:core-android`** — спільна Android-бібліотека (`ua.alerts.core`):
+  - Спільна інфраструктура для Android-застосунків (реалізація `AndroidLogBackend` на базі `android.util.Log` та ініціалізатор `AndroidLogInitializer`).
+- **`:mobile`** — застосунок для смартфона (`ua.alerts.mobile`, namespace `ua.alerts.mobile`, app ID `ua.alerts.neptun`):
+  - Повний клієнт моніторингу тривог, UI на Jetpack Compose, фонова служба FGS та синхронізація Wearable Data Layer.
+  - Ініціалізація `AndroidLogInitializer` при старті застосунку (`AlertApp`).
+- **`:wear`** — застосунок для Wear OS (`ua.alerts.wear`, namespace `ua.alerts.wear`, app ID `ua.alerts.neptun`):
+  - Автономний інтерфейс на Wear Compose, ускладнення для циферблатів та фоновий слухач синхронізації.
+  - Ініціалізація `AndroidLogInitializer` при старті застосунку (`WearAlertApp`).
 
 ---
 
