@@ -83,7 +83,7 @@ class AlertForegroundService : Service() {
         super.onCreate()
         settingsRepo = SettingsRepository(applicationContext)
         notificationHelper = NotificationHelper(applicationContext)
-        neptunClient = NeptunClient()
+        neptunClient = NeptunClient(scope = serviceScope)
         wearSyncManager = WearSyncManager(applicationContext, serviceScope) {
             AlertRepository.watchSyncData.value
         }

@@ -1,6 +1,8 @@
 package ua.alerts.mobile.data
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -9,7 +11,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import kotlinx.serialization.json.decodeFromJsonElement
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NeptunClientTest {
@@ -101,5 +106,115 @@ class NeptunClientTest {
         val heartbeatEnvelope = """{"type":"heartbeat"}"""
         val env5 = json.decodeFromString<ua.alerts.shared.model.NeptunWsEnvelope>(heartbeatEnvelope)
         assertEquals("heartbeat", env5.type)
+    }
+
+    @Test
+    fun testFetchAlertsSnapshotSuccess() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val jsonBody = """{"raions":[{"key":"київський","name":"Київський район","level":"red"}],"oblasts":[]}"""
+            server.enqueue(
+                MockResponse.Builder()
+                    .code(200)
+                    .setHeader("Content-Type", "application/json")
+                    .body(jsonBody)
+                    .build()
+            )
+
+            val client = NeptunClient(
+                scope = this,
+                restAlertsUrl = server.url("/api/v1/alerts").toString()
+            )
+
+            val result = client.fetchAlertsSnapshot()
+            assertTrue(result.isSuccess)
+            val alerts = result.getOrNull()!!
+            assertEquals(1, alerts.raions.size)
+            assertEquals("київський", alerts.raions[0].key)
+            assertEquals("red", alerts.raions[0].level)
+
+            val emitted = client.alertsFlow.first()
+            assertEquals("київський", emitted.raions[0].key)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun testFetchAlertsSnapshotHttpError() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse.Builder()
+                    .code(500)
+                    .body("Internal Server Error")
+                    .build()
+            )
+
+            val client = NeptunClient(
+                scope = this,
+                restAlertsUrl = server.url("/api/v1/alerts").toString()
+            )
+
+            val result = client.fetchAlertsSnapshot()
+            assertTrue(result.isFailure)
+            assertTrue(result.exceptionOrNull()?.message?.contains("500") == true)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun testFetchAlertsSnapshotEmptyBody() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse.Builder()
+                    .code(200)
+                    .build()
+            )
+
+            val client = NeptunClient(
+                scope = this,
+                restAlertsUrl = server.url("/api/v1/alerts").toString()
+            )
+
+            val result = client.fetchAlertsSnapshot()
+            assertTrue(result.isFailure)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test
+    fun testFetchAlertsSnapshotCancellation() = runTest {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse.Builder()
+                    .code(200)
+                    .body("""{"raions":[],"oblasts":[]}""")
+                    .headersDelay(5, TimeUnit.SECONDS)
+                    .build()
+            )
+
+            val client = NeptunClient(
+                scope = this,
+                restAlertsUrl = server.url("/api/v1/alerts").toString()
+            )
+
+            val job = launch {
+                client.fetchAlertsSnapshot()
+            }
+            job.cancel()
+            job.join()
+            assertTrue(job.isCancelled)
+        } finally {
+            server.close()
+        }
     }
 }

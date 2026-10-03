@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -21,10 +22,11 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okhttp3.coroutines.executeAsync
 import android.util.Log
 import ua.alerts.shared.model.NeptunAlertsResponse
 import ua.alerts.shared.model.NeptunWsEnvelope
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 enum class ConnectionStatus {
     STOPPED,
@@ -36,11 +38,9 @@ enum class ConnectionStatus {
 
 class NeptunClient(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
-        .pingInterval(20, TimeUnit.SECONDS)
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val httpClient: OkHttpClient = defaultOkHttpClient(),
+    private val wsUrl: String = WS_URL,
+    private val restAlertsUrl: String = REST_ALERTS_URL
 ) {
     companion object {
         const val TAG = "NeptunWs"
@@ -48,6 +48,13 @@ class NeptunClient(
         const val REST_ALERTS_URL = "https://neptun.in.ua/api/v1/alerts"
         const val INITIAL_RECONNECT_DELAY_MS = 2000L
         const val MAX_RECONNECT_DELAY_MS = 30000L
+
+        fun defaultOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+            .pingInterval(Duration.ofSeconds(20))
+            .connectTimeout(Duration.ofSeconds(15))
+            .readTimeout(Duration.ofSeconds(15))
+            .callTimeout(Duration.ofSeconds(20))
+            .build()
 
         fun calculateBackoffDelayMs(attempt: Int): Long {
             val shift = attempt.coerceIn(0, 4)
@@ -116,7 +123,7 @@ class NeptunClient(
         oldWs?.cancel()
 
         val request = Request.Builder()
-            .url(WS_URL)
+            .url(wsUrl)
             .build()
 
         webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
@@ -125,7 +132,7 @@ class NeptunClient(
                     webSocket.close(1000, "Client stopped")
                     return
                 }
-                Log.i(TAG, "WebSocket connected successfully to $WS_URL")
+                Log.i(TAG, "WebSocket connected successfully to $wsUrl")
                 reconnectAttempts = 0
                 reconnectJob?.cancel()
                 reconnectJob = null
@@ -220,18 +227,19 @@ class NeptunClient(
 
     suspend fun fetchAlertsSnapshot(): Result<NeptunAlertsResponse> = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Fetching alerts snapshot from REST: $REST_ALERTS_URL")
+            Log.d(TAG, "Fetching alerts snapshot from REST: $restAlertsUrl")
             val request = Request.Builder()
-                .url(REST_ALERTS_URL)
+                .url(restAlertsUrl)
                 .build()
 
-            httpClient.newCall(request).execute().use { response ->
+            httpClient.newCall(request).executeAsync().use { response ->
                 if (!response.isSuccessful) {
                     Log.e(TAG, "REST alerts snapshot request failed: HTTP ${response.code}")
                     return@withContext Result.failure(Exception("HTTP error: ${response.code}"))
                 }
-                val body = response.body?.string() ?: run {
-                    Log.e(TAG, "REST alerts snapshot response body is null")
+                val body = response.body.string()
+                if (body.isEmpty()) {
+                    Log.e(TAG, "REST alerts snapshot response body is empty")
                     return@withContext Result.failure(Exception("Empty body"))
                 }
                 Log.d(TAG, "REST alerts snapshot received: $body")
@@ -239,6 +247,8 @@ class NeptunClient(
                 _alertsFlow.emit(alerts)
                 Result.success(alerts)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "REST alerts snapshot exception: ${e.message}", e)
             Result.failure(e)
