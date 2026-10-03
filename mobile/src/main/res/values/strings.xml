@@ -99,4 +99,5 @@
     <string name="settings_battery_btn_disable">Вимкнути обмеження</string>
     <string name="settings_battery_badge_warning">Увага</string>
     <string name="settings_battery_badge_ok">ОК</string>
+    <string name="settings_app_version">Версія %s</string>
 </resources>

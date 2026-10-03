@@ -3,7 +3,6 @@ package ua.alerts.wear.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,13 +32,13 @@ import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.wear.BuildConfig
 import ua.alerts.wear.R
 import ua.alerts.wear.ui.theme.WearDangerRed
 import ua.alerts.wear.ui.theme.WearSafeGreen
 import ua.alerts.wear.ui.theme.WearWarningYellow
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @Composable
 fun AlertDetailScreen(
@@ -138,7 +137,7 @@ fun AlertDetailScreen(
             val formattedTime = EventTimeFormatter.formatLocalEventTime(status.since, locale)
             item {
                 Text(
-                    text = stringResource(R.string.alert_duration, formattedTime),
+                    text = stringResource(R.string.alarm_started, formattedTime),
                     fontSize = 11.sp,
                     color = Color.LightGray,
                     textAlign = TextAlign.Center
@@ -171,6 +170,16 @@ fun AlertDetailScreen(
                     fontWeight = FontWeight.SemiBold
                 )
             }
+        }
+
+        item {
+            Text(
+                text = "v${BuildConfig.VERSION_NAME}",
+                fontSize = 10.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
         }
     }
 }

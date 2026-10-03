@@ -43,6 +43,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
+import ua.alerts.mobile.BuildConfig
 import ua.alerts.mobile.R
 import ua.alerts.mobile.ui.theme.SafeGreen
 
@@ -381,6 +383,18 @@ fun GlobalSettingsScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = stringResource(R.string.settings_app_version, BuildConfig.VERSION_NAME),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
         }
     }
 }

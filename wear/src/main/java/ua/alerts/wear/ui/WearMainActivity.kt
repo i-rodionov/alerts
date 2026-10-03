@@ -42,6 +42,7 @@ import androidx.wear.compose.material.Text
 import ua.alerts.shared.constants.WearConstants
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.Profile
+import ua.alerts.wear.BuildConfig
 import ua.alerts.wear.R
 import ua.alerts.wear.WearAlertApp
 import ua.alerts.wear.ui.screens.AlertDetailScreen
@@ -172,8 +173,8 @@ fun WearProfileListScreen(
                 }
                 val tintColor = when {
                     isOffline -> WearWarningYellow
-                    status?.isYellow == true -> WearWarningYellow
-                    status?.isRed == true -> WearDangerRed
+                    status.isYellow -> WearWarningYellow
+                    status.isRed -> WearDangerRed
                     else -> WearSafeGreen
                 }
 
@@ -190,7 +191,7 @@ fun WearProfileListScreen(
                     secondaryLabel = {
                         val labelText = when {
                             isOffline -> stringResource(R.string.status_offline)
-                            status?.isAlarm == true -> stringResource(R.string.status_alarm)
+                            isAlarm -> stringResource(R.string.status_alarm)
                             else -> stringResource(R.string.status_clear)
                         }
                         Text(
@@ -229,6 +230,16 @@ fun WearProfileListScreen(
                     fontWeight = FontWeight.SemiBold
                 )
             }
+        }
+
+        item {
+            Text(
+                text = "v${BuildConfig.VERSION_NAME}",
+                fontSize = 10.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+            )
         }
     }
 }

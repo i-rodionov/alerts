@@ -99,4 +99,5 @@
     <string name="settings_battery_btn_disable">Disable optimization</string>
     <string name="settings_battery_badge_warning">Warning</string>
     <string name="settings_battery_badge_ok">OK</string>
+    <string name="settings_app_version">Version %s</string>
 </resources>
