@@ -1,5 +1,8 @@
 package ua.alerts.shared.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class AlertLevel {
     NO_ALERT,
     YELLOW,

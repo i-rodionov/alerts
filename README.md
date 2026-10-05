@@ -14,7 +14,11 @@
   - Окремі перемикачі звуку та вібрації при відбої тривоги.
   - Вибір індивідуальної мелодії для тривоги та для відбою через системний Ringtone Picker або використання системного сигналу за замовчуванням.
   - Виділені канали сповіщень для кожного профілю.
-- **Фільтрація переходів станів**: сповіщення надсилаються виключно при реальній зміні статусу (початок тривоги або відбій), що запобігає повторним помилковим спрацьовуванням при отриманні проміжних зрізів даних.
+- **Фільтрація переходів станів та надійне збереження бази сповіщень**:
+  - Сповіщення надсилаються виключно при реальній зміні статусу (початок тривоги або відбій), що запобігає повторним помилковим спрацьовуванням при отриманні проміжних зрізів даних.
+  - **Збереження базового рівня сповіщень у Jetpack DataStore**: базовий стан сповіщень фіксується у постійному сховищі за складеним ключем `(profileId, regionId, districtId)` (`AlertTargetKey`).
+  - **Виявлення переходів після перезапуску процесу**: навіть у разі перезавантаження пристрою, оновлення застосунку чи вивантаження процесу системою, тривога, яка розпочалася під час неактивності процесу, буде коректно виявлена та озвучена після запуску служби.
+  - **Ізоляція цілей при зміні регіону/району**: зміна області чи району профілю формує новий незалежний ключ і встановлює новий базовий рівень спостереження без хибних переходів або помилкових сповіщень про «відбій».
 - **Рівні загрози**:
   - 🔴 **Червоний рівень**: пряма загроза (ракети, шахеди/БпЛА тощо).
   - 🟡 **Жовтий рівень**: підвищена увага (наприклад, зліт авіації/МіГ-31К, попередження).
@@ -90,8 +94,11 @@
 │                   │                     │         │ WatchAlertRepository (Cache)        │
 │ AlertForegroundService (FGS specialUse) │         │                   ▲                 │
 │  ├── NeptunClient (WebSocket + REST)    │         │                   │                 │
-│  ├── NotificationHelper (Sound/Vibro)   │         │ WearDataListenerService             │
-│  └── WearSyncManager (DataClient)       │◄───────►│  (Wearable Data Layer /alert_status)│
+│  ├── AlertNotificationEngine (Shared)   │         │ WearDataListenerService             │
+│  ├── NotificationHelper (Sound/Vibro)   │         │  (Wearable Data Layer /alert_status)│
+│  ├── SettingsRepository (DataStore)     │◄───────►│                                     │
+│  │    - Profiles & Alert Baselines      │         │                                     │
+│  └── WearSyncManager (DataClient)       │         │                                     │
 └───────────────────┬─────────────────────┘         └─────────────────────────────────────┘
                     │
                     ▼
@@ -104,8 +111,9 @@
 ## Модулі проєкту
 
 - **`:shared`** — загальна Kotlin-бібліотека (JVM 17):
-  - Доменні моделі `AlertStatus`, `Profile`, `AlertLevel`, `WatchSyncData`.
+  - Доменні моделі `AlertStatus`, `Profile`, `AlertLevel` (`@Serializable`), `AlertTargetKey`, `WatchSyncData`.
   - Моделі DTO для Neptun API (`NeptunAlertsResponse`, `NeptunOblastAlert`, `NeptunRaionAlert`).
+  - Логіка обчислення переходів та координації базового рівня сповіщень (`AlertTransitionEvaluator`, `AlertNotificationEngine`).
   - База 25 областей та районів України (`DefaultRegions`).
   - Утиліта форматування локального часу подій `EventTimeFormatter`.
   - Константи Wearable DataLayer (`WearConstants`).
@@ -114,6 +122,7 @@
   - Спільна інфраструктура для Android-застосунків (реалізація `AndroidLogBackend` на базі `android.util.Log` та ініціалізатор `AndroidLogInitializer`).
 - **`:mobile`** — застосунок для смартфона (`ua.alerts.mobile`, namespace `ua.alerts.mobile`, app ID `ua.alerts.neptun`):
   - Повний клієнт моніторингу тривог (`NeptunClient` на базі OkHttp 5.5.0 із захистом ECH через `AndroidDns` та Kotlin Coroutines), UI на Jetpack Compose, фонова служба FGS та синхронізація Wearable Data Layer.
+  - Постійне збереження профілів та базового рівня сповіщень переходів (`SettingsRepository` на базі Jetpack DataStore Preferences із захистом від блокувань файлів `retryIO`).
   - Конфігурація мережевої безпеки `network_security_config.xml` з підтримкою `domainEncryption` для активного шифрування SNI в Android 17+.
   - Автоматичне відновлення моніторингу після перезавантаження (`BootReceiver`) та контроль оптимізації батареї (`BatteryOptimizationHelper`).
   - Ініціалізація `AndroidLogInitializer` при старті застосунку (`AlertApp`).

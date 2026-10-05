@@ -24,9 +24,8 @@ import ua.alerts.mobile.data.WearSyncManager
 import ua.alerts.mobile.notification.NotificationHelper
 import ua.alerts.shared.data.DefaultRegions
 import ua.alerts.shared.model.AlertLevel
+import ua.alerts.shared.model.AlertNotificationEngine
 import ua.alerts.shared.model.AlertStatus
-import ua.alerts.shared.model.AlertTransitionEvaluator
-import ua.alerts.shared.model.toAlertLevel
 import ua.alerts.shared.model.NeptunAlertsResponse
 import ua.alerts.shared.model.Profile
 import ua.alerts.shared.model.WatchSyncData
@@ -77,7 +76,7 @@ class AlertForegroundService : Service() {
     private var monitoringJob: Job? = null
     private var connectionStatusJob: Job? = null
     private var watchCountJob: Job? = null
-    private val profileAlertLevels = mutableMapOf<String, AlertLevel>()
+    private val notificationEngine = AlertNotificationEngine()
 
     override fun onCreate() {
         super.onCreate()
@@ -183,6 +182,10 @@ class AlertForegroundService : Service() {
 
         // Observe incoming alerts and compute status for all profiles
         monitoringJob = serviceScope.launch {
+            // Seed in-memory baselines from DataStore before evaluating emissions
+            val storedBaselines = settingsRepo.getAlertBaselines()
+            notificationEngine.initializeBaselines(storedBaselines)
+
             combine(
                 neptunClient.alertsFlow,
                 settingsRepo.profiles,
@@ -232,27 +235,25 @@ class AlertForegroundService : Service() {
                 // Sync all synchronized profiles to Wear OS
                 wearSyncManager.syncWatchData(watchSyncData)
 
-                // Trigger sound/vibration notifications ONLY on meaningful status transitions per profile
+                // Retain in-memory baselines only for profiles that currently exist
                 val currentProfileIds = profiles.map { it.id }.toSet()
-                profileAlertLevels.keys.retainAll(currentProfileIds)
+                notificationEngine.pruneDeletedProfiles(currentProfileIds)
 
-                for (profile in profiles) {
-                    val status = statusMap[profile.id] ?: continue
-                    val currentLevel = status.toAlertLevel()
-                    val prevLevel = profileAlertLevels[profile.id]
-                    val isMonitored = isGlobalEnabled && profile.backgroundMonitoring
+                // Evaluate transitions against notification baselines
+                val transitions = notificationEngine.evaluateTransitions(profiles, statusMap, isGlobalEnabled)
+                val baselinesToPersist = mutableMapOf<String, AlertLevel>()
 
-                    if (prevLevel == null) {
-                        // Baseline initialization (cold start, reconnect, or newly added profile).
-                        // Must NEVER trigger false notification!
-                        profileAlertLevels[profile.id] = currentLevel
-                    } else {
-                        if (AlertTransitionEvaluator.shouldNotifyTransition(prevLevel, currentLevel)) {
-                            if (isMonitored) {
-                                notificationHelper.notifyAlarmTransition(profile, status, effectiveLanguage)
-                            }
-                            profileAlertLevels[profile.id] = currentLevel
-                        }
+                for ((targetKey, profile, status, currentLevel, shouldNotify) in transitions) {
+                    if (shouldNotify) {
+                        notificationHelper.notifyAlarmTransition(profile, status, effectiveLanguage)
+                    }
+                    baselinesToPersist[targetKey] = currentLevel
+                }
+
+                if (baselinesToPersist.isNotEmpty()) {
+                    val toPersist = baselinesToPersist.toMap()
+                    serviceScope.launch(Dispatchers.IO) {
+                        settingsRepo.setAlertBaselines(toPersist)
                     }
                 }
             }
