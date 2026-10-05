@@ -3,8 +3,6 @@ package ua.alerts.wear
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import ua.alerts.shared.model.AlertStatus
@@ -37,25 +35,25 @@ class ComplicationMultiProfileTest {
         val status = if (profile != null && profileId != null) syncData.statuses[profileId] else null
 
         val isOffline = profileId == null || profile == null || status == null || status.isStale()
-        val isAlarm = !isOffline && status?.isAlarm == true
+        val isAlarm = !isOffline && status.isAlarm
         val regionName = profile?.displayName ?: status?.displayName ?: "Тривоги"
 
         val shortText = when {
             isOffline -> "—"
-            status?.isYellow == true -> "🟡"
-            status?.isRed == true -> "🔴"
+            status.isYellow -> "🟡"
+            status.isRed -> "🔴"
             else -> "🟢"
         }
         val shortTitle = when {
             isOffline -> "⚠️"
-            status?.isYellow == true -> "ЖОВ"
-            status?.isRed == true -> "ТРВ"
+            status.isYellow -> "ЖОВ"
+            status.isRed -> "ТРВ"
             else -> "ОК"
         }
         val longHeader = when {
             isOffline -> "Немає зв'язку"
-            status?.isYellow == true -> "🟡 " + (status.reasons.firstOrNull() ?: "ЖОВТИЙ РІВЕНЬ")
-            status?.isRed == true -> "🔴 " + (status.reasons.firstOrNull() ?: "ЧЕРВОНИЙ РІВЕНЬ")
+            status.isYellow -> "🟡 " + (status.reasons.firstOrNull() ?: "ЖОВТИЙ РІВЕНЬ")
+            status.isRed -> "🔴 " + (status.reasons.firstOrNull() ?: "ЧЕРВОНИЙ РІВЕНЬ")
             else -> "🟢 Чисто"
         }
 

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,7 +58,7 @@ fun RegionSelectScreen(
     onBack: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var expandedRegionId by remember { mutableStateOf<String?>(selectedRegionKey) }
+    var expandedRegionId by remember { mutableStateOf(selectedRegionKey) }
 
     val filteredRegions = remember(searchQuery) {
         if (searchQuery.isBlank()) {
@@ -192,7 +192,7 @@ fun RegionItem(
                     )
                     if (region.raions.isNotEmpty()) {
                         Text(
-                            text = stringResource(R.string.raions_count, region.raions.size),
+                            text = pluralStringResource(R.plurals.raions_count, region.raions.size, region.raions.size),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

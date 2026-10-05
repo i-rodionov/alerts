@@ -1,6 +1,5 @@
 package ua.alerts.mobile.data
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -16,7 +15,6 @@ import mockwebserver3.MockWebServer
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class NeptunClientTest {
 
     @Test
@@ -112,7 +110,7 @@ class NeptunClientTest {
     fun testFetchAlertsSnapshotSuccess() = runTest {
         val server = MockWebServer()
         server.start()
-        try {
+        server.use { server ->
             val jsonBody = """{"raions":[{"key":"київський","name":"Київський район","level":"red"}],"oblasts":[]}"""
             server.enqueue(
                 MockResponse.Builder()
@@ -136,8 +134,6 @@ class NeptunClientTest {
 
             val emitted = client.alertsFlow.first()
             assertEquals("київський", emitted.raions[0].key)
-        } finally {
-            server.close()
         }
     }
 
@@ -145,7 +141,7 @@ class NeptunClientTest {
     fun testFetchAlertsSnapshotHttpError() = runTest {
         val server = MockWebServer()
         server.start()
-        try {
+        server.use { server ->
             server.enqueue(
                 MockResponse.Builder()
                     .code(500)
@@ -161,8 +157,6 @@ class NeptunClientTest {
             val result = client.fetchAlertsSnapshot()
             assertTrue(result.isFailure)
             assertTrue(result.exceptionOrNull()?.message?.contains("500") == true)
-        } finally {
-            server.close()
         }
     }
 
@@ -170,7 +164,7 @@ class NeptunClientTest {
     fun testFetchAlertsSnapshotEmptyBody() = runTest {
         val server = MockWebServer()
         server.start()
-        try {
+        server.use { server ->
             server.enqueue(
                 MockResponse.Builder()
                     .code(200)
@@ -184,8 +178,6 @@ class NeptunClientTest {
 
             val result = client.fetchAlertsSnapshot()
             assertTrue(result.isFailure)
-        } finally {
-            server.close()
         }
     }
 
@@ -193,7 +185,7 @@ class NeptunClientTest {
     fun testFetchAlertsSnapshotCancellation() = runTest {
         val server = MockWebServer()
         server.start()
-        try {
+        server.use { server ->
             server.enqueue(
                 MockResponse.Builder()
                     .code(200)
@@ -213,8 +205,6 @@ class NeptunClientTest {
             job.cancel()
             job.join()
             assertTrue(job.isCancelled)
-        } finally {
-            server.close()
         }
     }
 }

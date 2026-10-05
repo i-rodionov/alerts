@@ -1,6 +1,5 @@
 package ua.alerts.wear.complication
 
-import android.app.Activity
 import android.content.ComponentName
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -70,7 +69,7 @@ class ComplicationConfigActivity : ComponentActivity() {
                             )
                             requester.requestUpdate(complicationId)
                         }
-                        setResult(Activity.RESULT_OK)
+                        setResult(RESULT_OK)
                         finish()
                     }
                 )

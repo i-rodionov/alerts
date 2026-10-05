@@ -17,8 +17,7 @@ data class AlertStatus(
     val reasons: List<String> = emptyList()
 ) {
     fun isStale(timeoutMs: Long = WearConstants.DEFAULT_TIMEOUT_MS): Boolean {
-        if (updatedAt <= 0) return true
-        return (System.currentTimeMillis() - updatedAt) > timeoutMs
+        return updatedAt <= 0 || (System.currentTimeMillis() - updatedAt) > timeoutMs
     }
 
     val isYellow: Boolean

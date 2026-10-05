@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Notifications
 import android.content.Context
 import android.media.RingtoneManager
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -53,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import ua.alerts.mobile.R
 import ua.alerts.mobile.ui.theme.DangerRed
 import ua.alerts.shared.model.Profile
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -385,7 +385,7 @@ fun resolveRingtoneTitle(context: Context, uriString: String?): String {
         return context.getString(R.string.sound_system_default)
     }
     return try {
-        val uri = Uri.parse(uriString)
+        val uri = uriString.toUri()
         val ringtone = RingtoneManager.getRingtone(context, uri)
         ringtone?.getTitle(context) ?: context.getString(R.string.sound_system_default)
     } catch (_: Exception) {

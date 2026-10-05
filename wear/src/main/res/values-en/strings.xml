@@ -11,12 +11,10 @@
     <string name="status_offline">No connection</string>
     <string name="sync_button">Sync with phone</string>
     <string name="last_synced">Synced: %s</string>
-    <string name="alert_duration">Duration: %s</string>
     <string name="alarm_started">Started: %s</string>
     <string name="select_region">Select Region</string>
     <string name="no_synchronized_profiles">No synchronized regions</string>
     <string name="enable_sync_hint">Enable synchronization in the phone app</string>
-    <string name="all_regions">All regions</string>
     <string name="complication_short_yellow">YEL</string>
     <string name="complication_short_red">ALR</string>
     <string name="complication_short_ok">OK</string>

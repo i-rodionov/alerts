@@ -27,7 +27,6 @@ class WatchAlertRepository(private val context: Context) {
     val syncData: StateFlow<WatchSyncData> = _syncData.asStateFlow()
 
     private val _currentStatus = MutableStateFlow(loadInitialStatus())
-    val currentStatus: StateFlow<AlertStatus> = _currentStatus.asStateFlow()
 
     private fun loadInitialSyncData(): WatchSyncData {
         val rawJson = prefs.getString("cached_sync_data_json", null)
@@ -105,10 +104,6 @@ class WatchAlertRepository(private val context: Context) {
         )
     }
 
-    fun getSynchronizedProfiles(): List<Profile> {
-        return _syncData.value.profiles
-    }
-
     fun getProfile(profileId: String?): Profile? {
         if (profileId.isNullOrEmpty()) return null
         return _syncData.value.profiles.find { it.id == profileId }
@@ -125,10 +120,6 @@ class WatchAlertRepository(private val context: Context) {
 
     fun setComplicationProfileId(instanceId: Int, profileId: String) {
         prefs.edit { putString("complication_${instanceId}_profile_id", profileId) }
-    }
-
-    fun removeComplicationConfig(instanceId: Int) {
-        prefs.edit { remove("complication_${instanceId}_profile_id") }
     }
 
     fun requestSyncFromPhone() {

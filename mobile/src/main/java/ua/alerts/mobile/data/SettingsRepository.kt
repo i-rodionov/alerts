@@ -9,7 +9,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import ua.alerts.shared.model.Profile
 
@@ -46,8 +45,6 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_GLOBAL_MONITORING] ?: prefs[KEY_SERVICE_ENABLED] ?: true
     }
 
-    val serviceEnabled: Flow<Boolean> = globalMonitoring
-
     val appLanguage: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_APP_LANGUAGE] ?: "system"
     }
@@ -64,8 +61,6 @@ class SettingsRepository(private val context: Context) {
             prefs[KEY_SERVICE_ENABLED] = enabled
         }
     }
-
-    suspend fun setServiceEnabled(enabled: Boolean) = setGlobalMonitoring(enabled)
 
     suspend fun saveProfile(profile: Profile) {
         context.dataStore.edit { prefs ->
@@ -104,21 +99,4 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
-    suspend fun setProfileWatchSync(profileId: String, enabled: Boolean) {
-        context.dataStore.edit { prefs ->
-            val currentList = try {
-                val jsonStr = prefs[KEY_PROFILES_JSON]
-                if (!jsonStr.isNullOrBlank()) json.decodeFromString<List<Profile>>(jsonStr) else emptyList()
-            } catch (_: Exception) {
-                emptyList()
-            }
-
-            val updatedList = currentList.map { p ->
-                if (p.id == profileId) p.copy(activeOnWatch = enabled) else p
-            }
-            prefs[KEY_PROFILES_JSON] = json.encodeToString(updatedList)
-        }
-    }
-
-    suspend fun setActiveWatchProfile(profileId: String) = setProfileWatchSync(profileId, true)
 }

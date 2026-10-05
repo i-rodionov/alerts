@@ -40,8 +40,8 @@ fun WearAlertTheme(
     val context = LocalContext.current
     val locale = remember(effectiveLanguage) {
         when (effectiveLanguage) {
-            "uk" -> Locale("uk")
-            "en" -> Locale("en")
+            "uk" -> Locale.forLanguageTag("uk")
+            "en" -> Locale.forLanguageTag("en")
             else -> Locale.getDefault()
         }
     }

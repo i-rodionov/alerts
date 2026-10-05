@@ -3,9 +3,9 @@ package ua.alerts.mobile.util
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.core.net.toUri
 
 object BatteryOptimizationHelper {
 
@@ -17,7 +17,7 @@ object BatteryOptimizationHelper {
     @SuppressLint("BatteryLife")
     fun createRequestIgnoreBatteryOptimizationsIntent(context: Context): Intent {
         val directIntent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = Uri.parse("package:${context.packageName}")
+            data = "package:${context.packageName}".toUri()
         }
         return if (directIntent.resolveActivity(context.packageManager) != null) {
             directIntent

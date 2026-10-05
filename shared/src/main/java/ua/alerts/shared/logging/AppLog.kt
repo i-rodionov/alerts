@@ -3,7 +3,7 @@ package ua.alerts.shared.logging
 /**
  * High-performance, zero-allocation logging facade for pure Kotlin and Android modules.
  *
- * Uses [inline] functions and lambda expressions ([() -> String]) to guarantee that string
+ * Uses `inline` functions and lambda expressions ([() -> String]) to guarantee that string
  * concatenation and formatting are completely skipped when the active log level is below [minLevel].
  * In release builds ([minLevel] = [LogLevel.WARN]), verbose, debug, and info lambdas are never evaluated.
  */

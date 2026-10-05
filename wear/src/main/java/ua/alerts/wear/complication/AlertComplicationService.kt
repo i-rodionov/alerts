@@ -25,7 +25,7 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
         if (repoLanguage.isNullOrEmpty() || repoLanguage == "system") {
             return this
         }
-        val locale = Locale(repoLanguage)
+        val locale = Locale.forLanguageTag(repoLanguage)
         val config = Configuration(resources.configuration).apply {
             setLocale(locale)
         }
@@ -92,7 +92,7 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
 
         // Offline if unconfigured, or profile removed/unsynchronized, or status missing/stale
         val isOffline = configuredProfileId == null || profile == null || status == null || status.isStale()
-        val isAlarm = !isOffline && status?.isAlarm == true
+        val isAlarm = !isOffline && status.isAlarm
         val regionName = profile?.getLocalizedDisplayName(syncLanguage)?.ifEmpty { localizedContext.getString(R.string.app_name) }
             ?: status?.getLocalizedDisplayName(syncLanguage)?.ifEmpty { localizedContext.getString(R.string.app_name) }
             ?: localizedContext.getString(R.string.app_name)
@@ -108,14 +108,14 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             ComplicationType.SHORT_TEXT -> {
                 val textStr = when {
                     isOffline -> "—"
-                    status?.isYellow == true -> "🟡"
-                    status?.isRed == true -> "🔴"
+                    status.isYellow -> "🟡"
+                    status.isRed -> "🔴"
                     else -> "🟢"
                 }
                 val titleStr = when {
                     isOffline -> "⚠️"
-                    status?.isYellow == true -> localizedContext.getString(R.string.complication_short_yellow)
-                    status?.isRed == true -> localizedContext.getString(R.string.complication_short_red)
+                    status.isYellow -> localizedContext.getString(R.string.complication_short_yellow)
+                    status.isRed -> localizedContext.getString(R.string.complication_short_red)
                     else -> localizedContext.getString(R.string.complication_short_ok)
                 }
                 val text = PlainComplicationText.Builder(textStr).build()
@@ -130,8 +130,8 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             ComplicationType.LONG_TEXT -> {
                 val headerStr = when {
                     isOffline -> localizedContext.getString(R.string.status_offline)
-                    status?.isYellow == true -> "🟡 " + (status.reasons.firstOrNull() ?: localizedContext.getString(R.string.status_alarm_yellow))
-                    status?.isRed == true -> "🔴 " + (status.reasons.firstOrNull() ?: localizedContext.getString(R.string.status_alarm_red))
+                    status.isYellow -> "🟡 " + (status.reasons.firstOrNull() ?: localizedContext.getString(R.string.status_alarm_yellow))
+                    status.isRed -> "🔴 " + (status.reasons.firstOrNull() ?: localizedContext.getString(R.string.status_alarm_red))
                     else -> "🟢 " + localizedContext.getString(R.string.status_clear)
                 }
                 val text = PlainComplicationText.Builder(headerStr).build()

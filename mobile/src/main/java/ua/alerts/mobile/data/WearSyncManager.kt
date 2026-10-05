@@ -20,7 +20,7 @@ import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.WatchSyncData
 
 class WearSyncManager(
-    private val context: Context,
+    context: Context,
     private val scope: CoroutineScope,
     private val getCurrentSyncData: () -> WatchSyncData
 ) : MessageClient.OnMessageReceivedListener {
@@ -73,12 +73,10 @@ class WearSyncManager(
             val putDataReq = putDataMapReq.asPutDataRequest().setUrgent()
             Tasks.await(dataClient.putDataItem(putDataReq))
             true
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
-
-    suspend fun syncAlertStatus(status: AlertStatus): Boolean = syncWatchData(getCurrentSyncData())
 
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path == WearConstants.PATH_REQUEST_SYNC) {

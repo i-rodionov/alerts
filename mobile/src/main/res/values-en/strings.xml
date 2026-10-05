@@ -2,12 +2,8 @@
 <resources>
     <string name="app_name">Neptun Alerts</string>
     <string name="status_clear">All Clear</string>
-    <string name="status_alarm">AIR RAID ALERT</string>
     <string name="status_alarm_yellow">AIR RAID ALERT (YELLOW LEVEL)</string>
     <string name="status_alarm_red">AIR RAID ALERT (RED LEVEL)</string>
-    <string name="level_yellow">Yellow level</string>
-    <string name="level_red">Red level</string>
-    <string name="status_unknown">Waiting for data…</string>
     <string name="service_notification_channel">Monitoring Service</string>
     <string name="alert_notification_channel">Alarm Signals</string>
     <string name="monitoring_active">Monitoring active</string>
@@ -25,16 +21,12 @@
     <string name="watch_connected">Watch connected</string>
     <string name="watch_disconnected">No watch connected</string>
     <string name="refresh">Refresh now</string>
-    <string name="last_updated">Updated: %s</string>
     <string name="alarm_started">Started: %s</string>
-    <string name="duration">Duration: %s</string>
-    <string name="monitoring_title">Monitoring</string>
     <string name="status_monitoring_disabled">Monitoring disabled</string>
     <string name="status_connecting">Connecting…</string>
     <string name="status_connected">Connected</string>
     <string name="status_reconnecting">Reconnecting…</string>
     <string name="status_connection_error">Connection error</string>
-    <string name="status_service_stopped">Service stopped</string>
     <string name="notification_sound_alert">Alert notification sound</string>
     <string name="notification_sound_clear">All-clear notification sound</string>
     <string name="sound_system_default">System default</string>
@@ -66,7 +58,10 @@
     <string name="btn_cancel">Cancel</string>
 
     <!-- Region selector & dashboard -->
-    <string name="raions_count">%d districts</string>
+    <plurals name="raions_count">
+        <item quantity="one">%d district</item>
+        <item quantity="other">%d districts</item>
+    </plurals>
     <string name="btn_clear">Clear</string>
     <string name="item_selected">Selected</string>
     <string name="btn_back">Back</string>
@@ -76,7 +71,6 @@
     <string name="badge_syncing">Sync…</string>
     <string name="badge_error">Error</string>
     <string name="badge_off">Off</string>
-    <string name="add_profile">Add Region</string>
     <string name="empty_profiles_title">No profiles added</string>
     <string name="empty_profiles_desc">Add an oblast or district to monitor air raid alerts</string>
     <string name="add_profile_button">Add profile</string>

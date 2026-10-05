@@ -24,7 +24,6 @@ object AlertTransitionEvaluator {
      * @return true if and only if there is an actual meaningful transition between known states.
      */
     fun shouldNotifyTransition(prev: AlertLevel?, current: AlertLevel): Boolean {
-        if (prev == null) return false
-        return prev != current
+        return prev != null && prev != current
     }
 }

@@ -22,6 +22,7 @@ import ua.alerts.mobile.ui.MainActivity
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.Profile
 import kotlin.math.abs
+import androidx.core.net.toUri
 
 class NotificationHelper(private val context: Context) {
 
@@ -59,7 +60,7 @@ class NotificationHelper(private val context: Context) {
         val hasStatus = status != null && status.regionName.isNotEmpty()
         val title = if (hasStatus) {
             when {
-                status!!.isYellow -> context.getString(R.string.status_alarm_yellow) + " 🟡"
+                status.isYellow -> context.getString(R.string.status_alarm_yellow) + " 🟡"
                 status.isRed -> context.getString(R.string.status_alarm_red) + " 🔴"
                 else -> context.getString(R.string.status_clear) + " 🟢"
             }
@@ -67,10 +68,10 @@ class NotificationHelper(private val context: Context) {
             context.getString(R.string.app_name)
         }
 
-        val regionPrefix = if (hasStatus) "${status!!.getLocalizedDisplayName(language)} • " else ""
+        val regionPrefix = if (hasStatus) "${status.getLocalizedDisplayName(language)} • " else ""
         val text = "$regionPrefix${context.getString(R.string.monitoring_active)} [$connText]"
 
-        val smallIcon = if (hasStatus && status!!.isAlarm) {
+        val smallIcon = if (hasStatus && status.isAlarm) {
             R.drawable.ic_warning_siren
         } else {
             R.drawable.ic_shield_check
@@ -93,8 +94,8 @@ class NotificationHelper(private val context: Context) {
                 ?: Settings.System.DEFAULT_NOTIFICATION_URI
         }
         return try {
-            val uri = Uri.parse(uriString)
-            if (uri != null && uri.scheme != null) {
+            val uri = uriString.toUri()
+            if (uri.scheme != null) {
                 uri
             } else {
                 RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -120,63 +121,59 @@ class NotificationHelper(private val context: Context) {
         val prefix = if (isAlarm) "alerts" else "clear"
         val channelId = "${prefix}_${profile.id}_$hash"
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val existing = notificationManager.getNotificationChannel(channelId)
-            if (existing != null) {
-                return channelId
-            }
-
-            // Cleanup older channels for this profile with a different sound hash
-            val targetPrefix = "${prefix}_${profile.id}_"
-            try {
-                notificationManager.notificationChannels.forEach { ch ->
-                    if (ch.id.startsWith(targetPrefix) && ch.id != channelId) {
-                        notificationManager.deleteNotificationChannel(ch.id)
-                    }
-                }
-            } catch (_: Exception) {}
-
-            val importance = if (isAlarm) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
-            val channelNamePrefix = if (isAlarm) {
-                context.getString(R.string.alert_notification_channel)
-            } else {
-                context.getString(R.string.status_clear)
-            }
-            val displayName = profile.getLocalizedDisplayName(language)
-            val channelName = "$channelNamePrefix: $displayName"
-            val soundUri = resolveSoundUri(soundUriString)
-
-            val audioAttributes = AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                .build()
-
-            val channel = NotificationChannel(channelId, channelName, importance).apply {
-                description = if (isAlarm) {
-                    context.getString(R.string.notification_channel_alert_desc, displayName)
-                } else {
-                    context.getString(R.string.notification_channel_clear_desc, displayName)
-                }
-                setSound(soundUri, audioAttributes)
-                enableVibration(false)
-            }
-            notificationManager.createNotificationChannel(channel)
+        val existing = notificationManager.getNotificationChannel(channelId)
+        if (existing != null) {
+            return channelId
         }
+
+        // Cleanup older channels for this profile with a different sound hash
+        val targetPrefix = "${prefix}_${profile.id}_"
+        try {
+            notificationManager.notificationChannels.forEach { ch ->
+                if (ch.id.startsWith(targetPrefix) && ch.id != channelId) {
+                    notificationManager.deleteNotificationChannel(ch.id)
+                }
+            }
+        } catch (_: Exception) {}
+
+        val importance = if (isAlarm) NotificationManager.IMPORTANCE_HIGH else NotificationManager.IMPORTANCE_DEFAULT
+        val channelNamePrefix = if (isAlarm) {
+            context.getString(R.string.alert_notification_channel)
+        } else {
+            context.getString(R.string.status_clear)
+        }
+        val displayName = profile.getLocalizedDisplayName(language)
+        val channelName = "$channelNamePrefix: $displayName"
+        val soundUri = resolveSoundUri(soundUriString)
+
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .build()
+
+        val channel = NotificationChannel(channelId, channelName, importance).apply {
+            description = if (isAlarm) {
+                context.getString(R.string.notification_channel_alert_desc, displayName)
+            } else {
+                context.getString(R.string.notification_channel_clear_desc, displayName)
+            }
+            setSound(soundUri, audioAttributes)
+            enableVibration(false)
+        }
+        notificationManager.createNotificationChannel(channel)
         return channelId
     }
 
     fun deleteProfileChannels(profileId: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val alertPrefix = "alerts_${profileId}_"
-            val clearPrefix = "clear_${profileId}_"
-            try {
-                notificationManager.notificationChannels.forEach { ch ->
-                    if (ch.id.startsWith(alertPrefix) || ch.id.startsWith(clearPrefix)) {
-                        notificationManager.deleteNotificationChannel(ch.id)
-                    }
+        val alertPrefix = "alerts_${profileId}_"
+        val clearPrefix = "clear_${profileId}_"
+        try {
+            notificationManager.notificationChannels.forEach { ch ->
+                if (ch.id.startsWith(alertPrefix) || ch.id.startsWith(clearPrefix)) {
+                    notificationManager.deleteNotificationChannel(ch.id)
                 }
-            } catch (_: Exception) {}
-        }
+            }
+        } catch (_: Exception) {}
     }
 
     fun notifyAlarmTransition(
@@ -237,25 +234,6 @@ class NotificationHelper(private val context: Context) {
         notificationManager.notify(notificationId, builder.build())
     }
 
-    fun notifyAlarmTransition(
-        status: AlertStatus,
-        soundEnabled: Boolean,
-        vibrateEnabled: Boolean
-    ) {
-        val dummyProfile = Profile(
-            id = status.regionKey,
-            regionId = status.regionKey,
-            regionName = status.regionName,
-            districtId = status.districtKey,
-            districtName = status.districtName,
-            soundOnAlarm = soundEnabled,
-            vibrateOnAlarm = vibrateEnabled,
-            soundOnClear = soundEnabled,
-            vibrateOnClear = vibrateEnabled
-        )
-        notifyAlarmTransition(dummyProfile, status)
-    }
-
     private fun triggerVibration(isAlarm: Boolean) {
         try {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -266,17 +244,12 @@ class NotificationHelper(private val context: Context) {
                 context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val pattern = if (isAlarm) {
-                    longArrayOf(0, 600, 200, 600, 200, 800)
-                } else {
-                    longArrayOf(0, 250, 150, 250)
-                }
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
+            val pattern = if (isAlarm) {
+                longArrayOf(0, 600, 200, 600, 200, 800)
             } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(600)
+                longArrayOf(0, 250, 150, 250)
             }
+            vibrator.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } catch (_: Exception) {}
     }
 }

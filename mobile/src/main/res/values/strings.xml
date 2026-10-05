@@ -2,12 +2,8 @@
 <resources>
     <string name="app_name">Тривоги Neptun</string>
     <string name="status_clear">Відбій тривоги</string>
-    <string name="status_alarm">ПОВІТРЯНА ТРИВОГА</string>
     <string name="status_alarm_yellow">ПОВІТРЯНА ТРИВОГА (ЖОВТИЙ РІВЕНЬ)</string>
     <string name="status_alarm_red">ПОВІТРЯНА ТРИВОГА (ЧЕРВОНИЙ РІВЕНЬ)</string>
-    <string name="level_yellow">Жовтий рівень</string>
-    <string name="level_red">Червоний рівень</string>
-    <string name="status_unknown">Очікування даних…</string>
     <string name="service_notification_channel">Служба моніторингу</string>
     <string name="alert_notification_channel">Сигнали тривоги</string>
     <string name="monitoring_active">Моніторинг активний</string>
@@ -25,16 +21,12 @@
     <string name="watch_connected">Годинник підключено</string>
     <string name="watch_disconnected">Годинник не знайдено</string>
     <string name="refresh">Оновити зараз</string>
-    <string name="last_updated">Оновлено: %s</string>
     <string name="alarm_started">Початок: %s</string>
-    <string name="duration">Тривалість: %s</string>
-    <string name="monitoring_title">Моніторинг</string>
     <string name="status_monitoring_disabled">Моніторинг вимкнено</string>
     <string name="status_connecting">Підключення…</string>
     <string name="status_connected">Підключено</string>
     <string name="status_reconnecting">Перепідключення…</string>
     <string name="status_connection_error">Помилка з\'єднання</string>
-    <string name="status_service_stopped">Службу зупинено</string>
     <string name="notification_sound_alert">Мелодія тривоги</string>
     <string name="notification_sound_clear">Мелодія відбою</string>
     <string name="sound_system_default">Системний за замовчуванням</string>
@@ -66,7 +58,12 @@
     <string name="btn_cancel">Скасувати</string>
 
     <!-- Region selector & dashboard -->
-    <string name="raions_count">%d районів</string>
+    <plurals name="raions_count">
+        <item quantity="one">%d район</item>
+        <item quantity="few">%d райони</item>
+        <item quantity="many">%d районів</item>
+        <item quantity="other">%d районів</item>
+    </plurals>
     <string name="btn_clear">Очистити</string>
     <string name="item_selected">Обрано</string>
     <string name="btn_back">Назад</string>
@@ -76,7 +73,6 @@
     <string name="badge_syncing">Sync…</string>
     <string name="badge_error">Error</string>
     <string name="badge_off">Off</string>
-    <string name="add_profile">Додати регіон</string>
     <string name="empty_profiles_title">Немає доданих профілів</string>
     <string name="empty_profiles_desc">Додайте область або район для моніторингу повітряних тривог</string>
     <string name="add_profile_button">Додати профіль</string>

@@ -3,7 +3,6 @@ package ua.alerts.mobile.receiver
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -11,7 +10,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class BootReceiverTest {
 
     private val dummyContext: Context = object : ContextWrapper(null) {
