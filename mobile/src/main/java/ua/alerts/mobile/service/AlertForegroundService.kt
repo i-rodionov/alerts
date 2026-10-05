@@ -89,37 +89,22 @@ class AlertForegroundService : Service() {
         }
 
         wearSyncManager.start()
-
-        // Promptly start foreground notification to satisfy Android 14+ / SDK 35 requirements
-        val initialNotification = notificationHelper.buildServiceNotification(
-            status = AlertRepository.alertStatus.value,
-            connectionStatus = ConnectionStatus.CONNECTING
-        )
-
-        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            }  else {
-            0
-        }
-        ServiceCompat.startForeground(
-            this,
-            NotificationHelper.NOTIFICATION_ID_SERVICE,
-            initialNotification,
-            fgsType
-        )
-
         AlertRepository.setServiceRunning(true)
         startMonitoring()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            stopMonitoring()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        // Always satisfy startForegroundService() contract when starting/running
+        promoteToForeground()
+
         when (intent?.action) {
-            ACTION_STOP -> {
-                stopMonitoring()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-                return START_NOT_STICKY
-            }
             ACTION_REFRESH -> {
                 serviceScope.launch {
                     neptunClient.fetchAlertsSnapshot()
@@ -131,6 +116,29 @@ class AlertForegroundService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    private fun promoteToForeground() {
+        val initialNotification = notificationHelper.buildServiceNotification(
+            status = AlertRepository.alertStatus.value,
+            connectionStatus = if (::neptunClient.isInitialized && neptunClient.isRunning) {
+                neptunClient.connectionStatus.value
+            } else {
+                ConnectionStatus.CONNECTING
+            }
+        )
+
+        val fgsType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+        } else {
+            0
+        }
+        ServiceCompat.startForeground(
+            this,
+            NotificationHelper.NOTIFICATION_ID_SERVICE,
+            initialNotification,
+            fgsType
+        )
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

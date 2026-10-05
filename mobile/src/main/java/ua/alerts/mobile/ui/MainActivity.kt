@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import ua.alerts.mobile.data.AlertRepository
 import ua.alerts.mobile.service.AlertForegroundService
 import ua.alerts.mobile.util.BatteryOptimizationHelper
 import ua.alerts.mobile.ui.screens.DashboardScreen
@@ -112,10 +113,12 @@ class MainActivity : ComponentActivity() {
 
         checkNotificationPermission()
 
-        lifecycleScope.launch {
-            val enabled = viewModel.settingsRepo.globalMonitoring.first()
-            if (enabled) {
-                AlertForegroundService.startService(this@MainActivity)
+        if (savedInstanceState == null || !AlertRepository.isServiceRunning.value) {
+            lifecycleScope.launch {
+                val enabled = viewModel.settingsRepo.globalMonitoring.first()
+                if (enabled && !AlertRepository.isServiceRunning.value) {
+                    AlertForegroundService.startService(this@MainActivity)
+                }
             }
         }
 
