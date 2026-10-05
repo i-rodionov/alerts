@@ -46,9 +46,9 @@ android {
     defaultConfig {
         applicationId = "ua.alerts.neptun"
         minSdk = 30
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
-        versionName = "1.1.1"
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
