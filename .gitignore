@@ -16,4 +16,5 @@ signing.properties
 *.apk
 *.aab
 **/build/
+/.agents
 GEMINI.md
