@@ -41,14 +41,14 @@ val isReleaseSigningConfigured = !releaseStoreFile.isNullOrBlank() &&
 
 android {
     namespace = "ua.alerts.wear"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "ua.alerts.neptun"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
-        versionName = "1.1.0"
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

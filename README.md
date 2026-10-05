@@ -26,7 +26,7 @@
   - Працює з `foregroundServiceType="specialUse"` (Target SDK 36), що запобігає примусовій зупинці служби системою через 6 годин (ліміт для `dataSync` в Android 15) та забезпечує цілодобовий безперервний моніторинг тривог.
   - Підтримує постійне WebSocket-з'єднання з сервером NEPTUN незалежно від стану активності, блокування екрана чи вивантаження UI з останніх задач.
   - Автоматичне перепідключення з експоненційним бекоффом (від 2 до 30 секунд).
-  - Асинхронний REST fallback (`GET /api/v1/alerts`) на базі сучасного OkHttp 5 та Kotlin Coroutines (`okhttp-coroutines` / `executeAsync`) під час перепідключення для актуалізації статусу.
+  - Асинхронний REST fallback (`GET /api/v1/alerts`) та WebSocket-стрім на базі OkHttp 5.5.0 (`okhttp-bom`, `okhttp-coroutines` / `executeAsync`), з підтримкою Encrypted Client Hello (ECH) через `AndroidDns` на Android 17+ (API 37)  під час перепідключення для актуалізації статусу.
 - **Автоматичне відновлення моніторингу після перезавантаження (`BootReceiver`)**:
   - Відновлення роботи фонової служби при старті системи (`BOOT_COMPLETED`), швидкому перезавантаженні (`QUICKBOOT_POWERON`) та після оновлення застосунку (`MY_PACKAGE_REPLACED`).
   - Служба відновлюється автоматично, якщо глобальний моніторинг увімкнено користувачем у налаштуваннях.
@@ -109,7 +109,8 @@
 - **`:core-android`** — спільна Android-бібліотека (`ua.alerts.core`):
   - Спільна інфраструктура для Android-застосунків (реалізація `AndroidLogBackend` на базі `android.util.Log` та ініціалізатор `AndroidLogInitializer`).
 - **`:mobile`** — застосунок для смартфона (`ua.alerts.mobile`, namespace `ua.alerts.mobile`, app ID `ua.alerts.neptun`):
-  - Повний клієнт моніторингу тривог, UI на Jetpack Compose, фонова служба FGS та синхронізація Wearable Data Layer.
+  - Повний клієнт моніторингу тривог (`NeptunClient` на базі OkHttp 5.5.0 із захистом ECH через `AndroidDns` та Kotlin Coroutines), UI на Jetpack Compose, фонова служба FGS та синхронізація Wearable Data Layer.
+  - Конфігурація мережевої безпеки `network_security_config.xml` з підтримкою `domainEncryption` для активного шифрування SNI в Android 17+.
   - Автоматичне відновлення моніторингу після перезавантаження (`BootReceiver`) та контроль оптимізації батареї (`BatteryOptimizationHelper`).
   - Ініціалізація `AndroidLogInitializer` при старті застосунку (`AlertApp`).
 - **`:wear`** — застосунок для Wear OS (`ua.alerts.wear`, namespace `ua.alerts.wear`, app ID `ua.alerts.neptun`):
@@ -157,8 +158,9 @@
 - **OS**: Windows (підтримується також macOS / Linux).
 - **JDK**: Java 17.
 - **Kotlin**: 2.4.20.
-- **AGP / Gradle**: AGP 9.2.1, Gradle 9.4.1.
-- **Android SDK**: `compileSdk = 36`, `minSdk = 26` (Mobile) / `30` (Wear), `targetSdk = 36`.
+- **AGP / Gradle**: AGP 9.2.1, Gradle 9.8.0.
+- **Android SDK**: `compileSdk = 37`, `minSdk = 26` (Mobile) / `30` (Wear), `targetSdk = 36`.
+- **Мережа та безпека**: OkHttp 5.5.0 (керування через `okhttp-bom`, Encrypted Client Hello через `AndroidDns`).
 
 Перед виконанням команд у PowerShell обов'язково встановлюйте шлях до JDK:
 ```powershell

@@ -12,6 +12,7 @@ import org.junit.Assert.assertTrue
 import kotlinx.serialization.json.decodeFromJsonElement
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import okhttp3.Headers.Companion.headersOf
 import org.junit.Test
 import java.util.concurrent.TimeUnit
 
@@ -113,11 +114,11 @@ class NeptunClientTest {
         server.use { server ->
             val jsonBody = """{"raions":[{"key":"київський","name":"Київський район","level":"red"}],"oblasts":[]}"""
             server.enqueue(
-                MockResponse.Builder()
-                    .code(200)
-                    .setHeader("Content-Type", "application/json")
-                    .body(jsonBody)
-                    .build()
+                MockResponse(
+                    code = 200,
+                    headers = headersOf("Content-Type", "application/json"),
+                    body = jsonBody,
+                )
             )
 
             val client = NeptunClient(
@@ -143,10 +144,10 @@ class NeptunClientTest {
         server.start()
         server.use { server ->
             server.enqueue(
-                MockResponse.Builder()
-                    .code(500)
-                    .body("Internal Server Error")
-                    .build()
+                MockResponse(
+                    code = 500,
+                    body = "Internal Server Error",
+                )
             )
 
             val client = NeptunClient(
@@ -166,9 +167,7 @@ class NeptunClientTest {
         server.start()
         server.use { server ->
             server.enqueue(
-                MockResponse.Builder()
-                    .code(200)
-                    .build()
+                MockResponse(code = 200)
             )
 
             val client = NeptunClient(
@@ -187,9 +186,10 @@ class NeptunClientTest {
         server.start()
         server.use { server ->
             server.enqueue(
-                MockResponse.Builder()
-                    .code(200)
-                    .body("""{"raions":[],"oblasts":[]}""")
+                MockResponse(
+                    code = 200,
+                    body = """{"raions":[],"oblasts":[]}""",
+                ).newBuilder()
                     .headersDelay(5, TimeUnit.SECONDS)
                     .build()
             )

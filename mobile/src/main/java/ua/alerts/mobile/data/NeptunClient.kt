@@ -15,19 +15,22 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
+import android.os.Build
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okhttp3.android.AndroidDns
 import okhttp3.coroutines.executeAsync
 import ua.alerts.shared.logging.AppLog
 import ua.alerts.shared.model.NeptunAlertsResponse
 import ua.alerts.shared.model.NeptunWsEnvelope
-import java.time.Duration
 
 enum class ConnectionStatus {
     STOPPED,
@@ -51,10 +54,15 @@ class NeptunClient(
         const val MAX_RECONNECT_DELAY_MS = 30000L
 
         fun defaultOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
-            .pingInterval(Duration.ofSeconds(20))
-            .connectTimeout(Duration.ofSeconds(15))
-            .readTimeout(Duration.ofSeconds(15))
-            .callTimeout(Duration.ofSeconds(20))
+            .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    dns(AndroidDns())
+                }
+            }
+            .pingInterval(45.seconds)
+            .connectTimeout(15.seconds)
+            .readTimeout(15.seconds)
+            .callTimeout(20.seconds)
             .build()
 
         fun calculateBackoffDelayMs(attempt: Int): Long {
@@ -229,9 +237,7 @@ class NeptunClient(
     suspend fun fetchAlertsSnapshot(): Result<NeptunAlertsResponse> = withContext(Dispatchers.IO) {
         try {
             AppLog.d(TAG) { "Fetching alerts snapshot from REST: $restAlertsUrl" }
-            val request = Request.Builder()
-                .url(restAlertsUrl)
-                .build()
+            val request = Request(url = restAlertsUrl.toHttpUrl())
 
             httpClient.newCall(request).executeAsync().use { response ->
                 if (!response.isSuccessful) {
