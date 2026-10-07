@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import ua.alerts.shared.constants.WearConstants
 import ua.alerts.shared.model.AlertStatus
 import ua.alerts.shared.model.Profile
 import ua.alerts.shared.model.WatchSyncData
@@ -34,7 +35,7 @@ class ComplicationMultiProfileTest {
         val profile = syncData.profiles.find { it.id == profileId }
         val status = if (profile != null && profileId != null) syncData.statuses[profileId] else null
 
-        val isOffline = profileId == null || profile == null || status == null || status.isStale()
+        val isOffline = profileId == null || profile == null || status == null || status.isStale() || !syncData.monitoringActive
         val isAlarm = !isOffline && status.isAlarm
         val regionName = profile?.displayName ?: status?.displayName ?: "Тривоги"
 
@@ -77,9 +78,11 @@ class ComplicationMultiProfileTest {
 
         // Only profiles with activeOnWatch = true are synced to Wear OS
         val syncedProfiles = phoneProfiles.filter { it.activeOnWatch }
+        val now = System.currentTimeMillis()
         val syncData = WatchSyncData(
             profiles = syncedProfiles,
-            statuses = syncedProfiles.associate { it.id to AlertStatus(regionName = it.regionName) }
+            statuses = syncedProfiles.associate { it.id to AlertStatus(regionName = it.regionName, updatedAt = now) },
+            monitoringActive = true
         )
 
         assertEquals(2, syncData.profiles.size)
@@ -90,14 +93,16 @@ class ComplicationMultiProfileTest {
 
     @Test
     fun testCase2_TwoComplicationInstances_IndependentDisplay() {
+        val now = System.currentTimeMillis()
         val profileA = Profile(id = "A", regionName = "Київ", activeOnWatch = true)
         val profileB = Profile(id = "B", regionName = "Полтава", activeOnWatch = true)
-        val statusA = AlertStatus(isAlarm = true, level = "red", regionName = "Київ", reasons = listOf("Ракетна загроза"))
-        val statusB = AlertStatus(isAlarm = false, regionName = "Полтава")
+        val statusA = AlertStatus(isAlarm = true, level = "red", regionName = "Київ", reasons = listOf("Ракетна загроза"), updatedAt = now)
+        val statusB = AlertStatus(isAlarm = false, regionName = "Полтава", updatedAt = now)
 
         val syncData = WatchSyncData(
             profiles = listOf(profileA, profileB),
-            statuses = mapOf("A" to statusA, "B" to statusB)
+            statuses = mapOf("A" to statusA, "B" to statusB),
+            monitoringActive = true
         )
 
         val instanceConfigs = mapOf(101 to "A", 102 to "B")
@@ -122,14 +127,16 @@ class ComplicationMultiProfileTest {
 
     @Test
     fun testCase3_ChangeInstance1_Instance2Unaffected() {
+        val now = System.currentTimeMillis()
         val profileA = Profile(id = "A", regionName = "Київ", activeOnWatch = true)
         val profileB = Profile(id = "B", regionName = "Полтава", activeOnWatch = true)
-        val statusA = AlertStatus(isAlarm = true, level = "red", regionName = "Київ")
-        val statusB = AlertStatus(isAlarm = false, regionName = "Полтава")
+        val statusA = AlertStatus(isAlarm = true, level = "red", regionName = "Київ", updatedAt = now)
+        val statusB = AlertStatus(isAlarm = false, regionName = "Полтава", updatedAt = now)
 
         val syncData = WatchSyncData(
             profiles = listOf(profileA, profileB),
-            statuses = mapOf("A" to statusA, "B" to statusB)
+            statuses = mapOf("A" to statusA, "B" to statusB),
+            monitoringActive = true
         )
 
         val configs = mutableMapOf(101 to "A", 102 to "B")
@@ -154,7 +161,8 @@ class ComplicationMultiProfileTest {
         // B had sync disabled on phone -> removed from Wear OS profiles
         val syncData = WatchSyncData(
             profiles = listOf(profileA),
-            statuses = mapOf("A" to AlertStatus(isAlarm = false, regionName = "Київ"))
+            statuses = mapOf("A" to AlertStatus(isAlarm = false, regionName = "Київ", updatedAt = System.currentTimeMillis())),
+            monitoringActive = true
         )
 
         val configs = mapOf(101 to "A", 102 to "B")
@@ -173,7 +181,8 @@ class ComplicationMultiProfileTest {
         // B was deleted on phone -> disappeared from synced data
         val syncData = WatchSyncData(
             profiles = emptyList(),
-            statuses = emptyMap()
+            statuses = emptyMap(),
+            monitoringActive = true
         )
 
         val configs = mapOf(102 to "B")
@@ -190,16 +199,17 @@ class ComplicationMultiProfileTest {
         val configs = mapOf(102 to "B")
 
         // Initially B is unsynchronized -> offline
-        val syncDataOffline = WatchSyncData(profiles = emptyList(), statuses = emptyMap())
+        val syncDataOffline = WatchSyncData(profiles = emptyList(), statuses = emptyMap(), monitoringActive = true)
         val displayOffline = resolveComplication(102, configs, syncDataOffline)
         assertTrue(displayOffline.isOffline)
 
         // B becomes synchronized again with the same stable profileId
         val profileB = Profile(id = "B", regionName = "Полтава", activeOnWatch = true)
-        val statusB = AlertStatus(isAlarm = true, level = "yellow", regionName = "Полтава", reasons = listOf("Дрони"))
+        val statusB = AlertStatus(isAlarm = true, level = "yellow", regionName = "Полтава", reasons = listOf("Дрони"), updatedAt = System.currentTimeMillis())
         val syncDataRestored = WatchSyncData(
             profiles = listOf(profileB),
-            statuses = mapOf("B" to statusB)
+            statuses = mapOf("B" to statusB),
+            monitoringActive = true
         )
 
         val displayRestored = resolveComplication(102, configs, syncDataRestored)
@@ -214,15 +224,17 @@ class ComplicationMultiProfileTest {
 
     @Test
     fun testCase7_PersistenceRoundTripAcrossRestarts() {
+        val now = System.currentTimeMillis()
         val profileA = Profile(id = "A", regionName = "Київ", activeOnWatch = true)
         val profileB = Profile(id = "B", regionName = "Полтава", activeOnWatch = true)
-        val statusA = AlertStatus(isAlarm = true, level = "red", regionName = "Київ")
-        val statusB = AlertStatus(isAlarm = false, regionName = "Полтава")
+        val statusA = AlertStatus(isAlarm = true, level = "red", regionName = "Київ", updatedAt = now)
+        val statusB = AlertStatus(isAlarm = false, regionName = "Полтава", updatedAt = now)
 
         val syncData = WatchSyncData(
             profiles = listOf(profileA, profileB),
             statuses = mapOf("A" to statusA, "B" to statusB),
-            updatedAt = 987654321L
+            updatedAt = 987654321L,
+            monitoringActive = true
         )
 
         // Serialize to JSON (as stored in SharedPreferences)
@@ -233,6 +245,7 @@ class ComplicationMultiProfileTest {
 
         assertEquals(2, restoredData.profiles.size)
         assertEquals(987654321L, restoredData.updatedAt)
+        assertTrue(restoredData.monitoringActive)
         assertEquals("Київ", restoredData.statuses["A"]?.regionName)
         assertEquals("Полтава", restoredData.statuses["B"]?.regionName)
 
@@ -249,7 +262,8 @@ class ComplicationMultiProfileTest {
         val profileA = Profile(id = "A", regionName = "Київ", activeOnWatch = true)
         val syncData = WatchSyncData(
             profiles = listOf(profileA),
-            statuses = mapOf("A" to AlertStatus(isAlarm = false, regionName = "Київ"))
+            statuses = mapOf("A" to AlertStatus(isAlarm = false, regionName = "Київ", updatedAt = System.currentTimeMillis())),
+            monitoringActive = true
         )
 
         // Complication instance 999 has no configuration mapping
@@ -288,5 +302,109 @@ class ComplicationMultiProfileTest {
 
         assertEquals("Одеський район", profile.getLocalizedDisplayName(syncDataUk.language))
         assertEquals("Одеська область", profile.getLocalizedRegionName(syncDataUk.language))
+    }
+
+    @Test
+    fun testMonitoringInactive_ForcesComplicationOffline() {
+        val now = System.currentTimeMillis()
+        val profile = Profile(id = "p1", regionName = "Київ", activeOnWatch = true)
+        val status = AlertStatus(isAlarm = false, regionName = "Київ", updatedAt = now)
+
+        // Monitoring is NOT active -> complication must be offline, NEVER calm
+        val syncData = WatchSyncData(
+            profiles = listOf(profile),
+            statuses = mapOf("p1" to status),
+            monitoringActive = false
+        )
+        val configs = mapOf(1 to "p1")
+        val display = resolveComplication(1, configs, syncData)
+
+        assertTrue("When monitoring is inactive, complication must be OFFLINE", display.isOffline)
+        assertEquals("—", display.shortText)
+        assertEquals("⚠️", display.shortTitle)
+        assertEquals("Немає зв'язку", display.longHeader)
+    }
+
+    @Test
+    fun testExpiredStatus_ForcesComplicationOffline() {
+        // Status timestamp is older than default TTL
+        val staleTime = System.currentTimeMillis() - (WearConstants.DEFAULT_TIMEOUT_MS + 1000)
+        val profile = Profile(id = "p1", regionName = "Київ", activeOnWatch = true)
+        val status = AlertStatus(isAlarm = false, regionName = "Київ", updatedAt = staleTime)
+
+        val syncData = WatchSyncData(
+            profiles = listOf(profile),
+            statuses = mapOf("p1" to status),
+            monitoringActive = true
+        )
+        val configs = mapOf(1 to "p1")
+        val display = resolveComplication(1, configs, syncData)
+
+        assertTrue("Expired status must be OFFLINE", display.isOffline)
+        assertEquals("—", display.shortText)
+    }
+
+    @Test
+    fun testDefaultAlertStatus_IsConsideredStaleAndOffline() {
+        // Default AlertStatus has updatedAt = 0L -> must be stale
+        val defaultStatus = AlertStatus()
+        assertTrue("AlertStatus() with default updatedAt=0L must be stale", defaultStatus.isStale())
+
+        val profile = Profile(id = "p1", regionName = "Київ", activeOnWatch = true)
+        val syncData = WatchSyncData(
+            profiles = listOf(profile),
+            statuses = mapOf("p1" to defaultStatus),
+            monitoringActive = true
+        )
+        val configs = mapOf(1 to "p1")
+        val display = resolveComplication(1, configs, syncData)
+
+        assertTrue("Default status must evaluate to OFFLINE, not CALM", display.isOffline)
+        assertEquals("—", display.shortText)
+    }
+
+
+    @Test
+    fun testDisableAndReEnableSync_PreservesConfigurationAndResolvesAutomatically() {
+        val now = System.currentTimeMillis()
+        val profileA = Profile(id = "A", regionName = "Київ", activeOnWatch = true)
+        val statusA = AlertStatus(isAlarm = true, level = "red", regionName = "Київ", updatedAt = now)
+
+        val configs = mutableMapOf(101 to "A")
+
+        // 1. Initial active state: Profile A is synchronized and in alarm
+        val syncDataInitial = WatchSyncData(
+            profiles = listOf(profileA),
+            statuses = mapOf("A" to statusA),
+            monitoringActive = true
+        )
+        val displayInitial = resolveComplication(101, configs, syncDataInitial)
+        assertFalse(displayInitial.isOffline)
+        assertTrue(displayInitial.isAlarm)
+        assertEquals("🔴", displayInitial.shortText)
+
+        // 2. User disables synchronization on phone for Profile A
+        // Complication config mapping (101 -> A) MUST be preserved in preferences, NOT pruned!
+        val syncDataDisabled = WatchSyncData(
+            profiles = emptyList(), // excluded because activeOnWatch = false
+            statuses = emptyMap(),
+            monitoringActive = true
+        )
+        val displayDisabled = resolveComplication(101, configs, syncDataDisabled)
+        assertTrue("While sync is disabled, complication gracefully displays offline", displayDisabled.isOffline)
+        assertEquals("—", displayDisabled.shortText)
+        assertEquals("Немає зв'язку", displayDisabled.longHeader)
+
+        // 3. User re-enables synchronization on phone for Profile A
+        val syncDataReEnabled = WatchSyncData(
+            profiles = listOf(profileA),
+            statuses = mapOf("A" to statusA),
+            monitoringActive = true
+        )
+        val displayReEnabled = resolveComplication(101, configs, syncDataReEnabled)
+        assertFalse("When sync is re-enabled, complication automatically resolves and is NOT stuck on offline", displayReEnabled.isOffline)
+        assertTrue(displayReEnabled.isAlarm)
+        assertEquals("🔴", displayReEnabled.shortText)
+        assertEquals("Київ", displayReEnabled.regionName)
     }
 }

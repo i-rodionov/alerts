@@ -21,7 +21,7 @@ class AlertRepositoryTest {
     fun testInitialRepositoryState() {
         assertFalse(AlertRepository.isServiceRunning.value)
         assertEquals(ConnectionStatus.STOPPED, AlertRepository.connectionStatus.value)
-        assertEquals(AlertStatus(updatedAt = AlertRepository.alertStatus.value.updatedAt), AlertRepository.alertStatus.value)
+        assertNull(AlertRepository.alertStatus.value)
         assertEquals(0, AlertRepository.connectedWatchCount.value)
         assertNull(AlertRepository.lastError.value)
     }
@@ -67,8 +67,8 @@ class AlertRepositoryTest {
         )
         AlertRepository.setAlertStatus(newStatus)
         assertEquals(newStatus, AlertRepository.alertStatus.value)
-        assertTrue(AlertRepository.alertStatus.value.isAlarm)
-        assertEquals("Бориспільський район", AlertRepository.alertStatus.value.displayName)
+        assertTrue(AlertRepository.alertStatus.value?.isAlarm == true)
+        assertEquals("Бориспільський район", AlertRepository.alertStatus.value?.displayName)
     }
 
     @Test
@@ -116,5 +116,21 @@ class AlertRepositoryTest {
         AlertRepository.reset()
         assertTrue(AlertRepository.watchSyncData.value.profiles.isEmpty())
         assertTrue(AlertRepository.watchSyncData.value.statuses.isEmpty())
+    }
+
+
+    @Test
+    fun testClearRuntimeAlerts() {
+        val status = AlertStatus(isAlarm = true, regionKey = "kyivska", regionName = "Київська область")
+        AlertRepository.setAlertStatus(status)
+        AlertRepository.setProfileAlerts(mapOf("p1" to status))
+
+        assertEquals(status, AlertRepository.alertStatus.value)
+        assertEquals(1, AlertRepository.profileAlerts.value.size)
+
+        AlertRepository.clearRuntimeAlerts()
+
+        assertNull(AlertRepository.alertStatus.value)
+        assertTrue(AlertRepository.profileAlerts.value.isEmpty())
     }
 }

@@ -52,7 +52,8 @@ class WatchSyncDataTest {
             profiles = listOf(profileA, profileB),
             statuses = mapOf("profile-a" to statusA, "profile-b" to statusB),
             updatedAt = 123456789L,
-            language = "uk"
+            language = "uk",
+            monitoringActive = true
         )
 
         val encoded = json.encodeToString(WatchSyncData.serializer(), syncData)
@@ -63,6 +64,7 @@ class WatchSyncDataTest {
         assertEquals("profile-b", decoded.profiles[1].id)
         assertEquals(123456789L, decoded.updatedAt)
         assertEquals("uk", decoded.language)
+        assertTrue(decoded.monitoringActive)
 
         val decodedStatusA = decoded.statuses["profile-a"]
         assertNotNull(decodedStatusA)
@@ -84,5 +86,22 @@ class WatchSyncDataTest {
 
         assertTrue(decoded.profiles.isEmpty())
         assertTrue(decoded.statuses.isEmpty())
+        assertFalse(decoded.monitoringActive)
+        assertEquals(0L, decoded.updatedAt)
+    }
+
+    @Test
+    fun testMonitoringActiveSerialization() {
+        val activeSync = WatchSyncData(monitoringActive = true, updatedAt = 1000L)
+        val encodedActive = json.encodeToString(WatchSyncData.serializer(), activeSync)
+        val decodedActive = json.decodeFromString<WatchSyncData>(encodedActive)
+        assertTrue(decodedActive.monitoringActive)
+        assertEquals(1000L, decodedActive.updatedAt)
+
+        val inactiveSync = WatchSyncData(monitoringActive = false, updatedAt = 2000L)
+        val encodedInactive = json.encodeToString(WatchSyncData.serializer(), inactiveSync)
+        val decodedInactive = json.decodeFromString<WatchSyncData>(encodedInactive)
+        assertFalse(decodedInactive.monitoringActive)
+        assertEquals(2000L, decodedInactive.updatedAt)
     }
 }

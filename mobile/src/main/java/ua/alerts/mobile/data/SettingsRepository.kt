@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import ua.alerts.shared.logging.AppLog
 import ua.alerts.shared.model.AlertLevel
@@ -124,6 +125,7 @@ class SettingsRepository(
         dataStore.edit { prefs ->
             prefs[KEY_APP_LANGUAGE] = language
         }
+        triggerWearSync()
     }
 
     suspend fun setGlobalMonitoring(enabled: Boolean) {
@@ -131,6 +133,7 @@ class SettingsRepository(
             prefs[KEY_GLOBAL_MONITORING] = enabled
             prefs[KEY_SERVICE_ENABLED] = enabled
         }
+        triggerWearSync()
     }
 
     suspend fun saveProfile(profile: Profile) {
@@ -155,6 +158,7 @@ class SettingsRepository(
                     prefs[KEY_PROFILES_JSON] = json.encodeToString(updatedList)
                 }
             }
+            triggerWearSync()
         } catch (t: Throwable) {
             AppLog.e(TAG, t) { "Failed to save profile ${profile.id}" }
         }
@@ -190,8 +194,17 @@ class SettingsRepository(
                     }
                 }
             }
+            triggerWearSync()
         } catch (t: Throwable) {
             AppLog.e(TAG, t) { "Failed to delete profile $profileId" }
         }
+    }
+
+    private fun triggerWearSync() {
+        try {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                WearSyncManager.syncCurrentState(context)
+            }
+        } catch (_: Throwable) {}
     }
 }

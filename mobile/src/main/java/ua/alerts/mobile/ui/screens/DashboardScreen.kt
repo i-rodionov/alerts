@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Place
@@ -71,6 +72,7 @@ fun DashboardScreen(
     profiles: List<Profile>,
     profileAlerts: Map<String, AlertStatus>,
     connectionStatus: ConnectionStatus,
+    isServiceRunning: Boolean = connectionStatus != ConnectionStatus.STOPPED,
     onRefresh: () -> Unit,
     onOpenSettings: () -> Unit,
     onProfileClick: (Profile) -> Unit,
@@ -169,10 +171,11 @@ fun DashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(profiles, key = { it.id }) { profile ->
-                        val alertStatus = profileAlerts[profile.id] ?: AlertStatus()
+                        val alertStatus = profileAlerts[profile.id]
                         ProfileCard(
                             profile = profile,
                             alertStatus = alertStatus,
+                            isServiceRunning = isServiceRunning,
                             onClick = { onProfileClick(profile) }
                         )
                     }
@@ -242,24 +245,32 @@ fun DashboardScreen(
 @Composable
 fun ProfileCard(
     profile: Profile,
-    alertStatus: AlertStatus,
+    alertStatus: AlertStatus?,
+    isServiceRunning: Boolean = true,
     onClick: () -> Unit
 ) {
     val locale = LocalConfiguration.current.locales[0]
-    val isAlarm = alertStatus.isAlarm
+    val isUnknown = !isServiceRunning || alertStatus == null || alertStatus.isStale()
+    val isAlarm = !isUnknown && alertStatus.isAlarm
+    val isYellow = !isUnknown && alertStatus.isYellow
+    val isRed = !isUnknown && alertStatus.isRed
+
     val cardBg = when {
-        alertStatus.isYellow -> WarningYellowLight
-        alertStatus.isRed -> DangerRedLight
+        isUnknown -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        isYellow -> WarningYellowLight
+        isRed -> DangerRedLight
         else -> SafeGreenLight
     }
     val statusColor = when {
-        alertStatus.isYellow -> WarningYellow
-        alertStatus.isRed -> DangerRed
+        isUnknown -> MaterialTheme.colorScheme.onSurfaceVariant
+        isYellow -> WarningYellow
+        isRed -> DangerRed
         else -> SafeGreen
     }
     val statusText = when {
-        alertStatus.isYellow -> stringResource(R.string.status_alarm_yellow)
-        alertStatus.isRed -> stringResource(R.string.status_alarm_red)
+        isUnknown -> stringResource(R.string.status_unknown)
+        isYellow -> stringResource(R.string.status_alarm_yellow)
+        isRed -> stringResource(R.string.status_alarm_red)
         else -> stringResource(R.string.status_clear)
     }
 
@@ -283,13 +294,17 @@ fun ProfileCard(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(statusColor),
+                        .background(if (isUnknown) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f) else statusColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (isAlarm) Icons.Default.Warning else Icons.Default.Security,
+                        imageVector = when {
+                            isUnknown -> Icons.Default.HourglassEmpty
+                            isAlarm -> Icons.Default.Warning
+                            else -> Icons.Default.Security
+                        },
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = if (isUnknown) MaterialTheme.colorScheme.onSurfaceVariant else Color.White,
                         modifier = Modifier.size(24.dp)
                     )
                 }

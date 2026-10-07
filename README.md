@@ -19,10 +19,11 @@
   - **Збереження базового рівня сповіщень у Jetpack DataStore**: базовий стан сповіщень фіксується у постійному сховищі за складеним ключем `(profileId, regionId, districtId)` (`AlertTargetKey`).
   - **Виявлення переходів після перезапуску процесу**: навіть у разі перезавантаження пристрою, оновлення застосунку чи вивантаження процесу системою, тривога, яка розпочалася під час неактивності процесу, буде коректно виявлена та озвучена після запуску служби.
   - **Ізоляція цілей при зміні регіону/району**: зміна області чи району профілю формує новий незалежний ключ і встановлює новий базовий рівень спостереження без хибних переходів або помилкових сповіщень про «відбій».
-- **Рівні загрози**:
-  - 🔴 **Червоний рівень**: пряма загроза (ракети, шахеди/БпЛА тощо).
-  - 🟡 **Жовтий рівень**: підвищена увага (наприклад, зліт авіації/МіГ-31К, попередження).
-  - 🟢 **Відбій**: спокійна ситуація.
+- **Рівні загрози та модель станів (CALM / ALERT / UNKNOWN)**:
+  - 🔴 **Червоний рівень (ALERT)**: пряма загроза (ракети, шахеди/БпЛА тощо).
+  - 🟡 **Жовтий рівень (ALERT)**: підвищена увага (наприклад, зліт авіації/МіГ-31К, попередження).
+  - 🟢 **Відбій (CALM)**: підтверджена відсутність загрози за наявності актуальних валідних даних.
+  - ⚪ **Очікування даних (UNKNOWN)**: відсутність достовірних свіжих даних (служба зупинена, процес перезапущено, дані застаріли понад TTL, профіль не синхронізовано). Відображається нейтральним стилем («Очікування даних…» / "Waiting for data…") та суворо ізольований від статусу відбою.
 - **Локалізація інтерфейсу**:
   - Підтримка української та англійської мов із можливістю явного перемикання в налаштуваннях або використання системної мови за замовчуванням.
   - Форматування часу подій у часовому поясі пристрою (час доби для сьогоднішніх подій, дата + час для попередніх).
@@ -31,6 +32,7 @@
   - Підтримує постійне WebSocket-з'єднання з сервером NEPTUN незалежно від стану активності, блокування екрана чи вивантаження UI з останніх задач.
   - Автоматичне перепідключення з експоненційним бекоффом (від 2 до 30 секунд).
   - Асинхронний REST fallback (`GET /api/v1/alerts`) та WebSocket-стрім на базі OkHttp 5.5.0 (`okhttp-bom`, `okhttp-coroutines` / `executeAsync`), з підтримкою Encrypted Client Hello (ECH) через `AndroidDns` на Android 17+ (API 37) під час перепідключення для актуалізації статусу.
+  - При зупинці служби (`ACTION_STOP`) оперативний стан тривог на смартфоні повністю очищується (`clearRuntimeAlerts()`), а на годинник надсилається фінальний пакет синхронізації з `monitoringActive = false`.
 - **Адаптивний Edge-to-Edge інтерфейс (Android 8.0–17 / API 26–37)**:
   - Повна підтримка безрамкового режиму (Edge-to-Edge) з прозорими системними панелями та автоматичним керуванням контрастністю іконок статус-бару й панелі навігації.
   - Безшовна обробка екранної клавіатури (`windowSoftInputMode="adjustResize"`) та системних відступів (Window Insets) у Compose M3 Scaffolds.
@@ -42,26 +44,29 @@
 - **Контроль надійності фонової роботи та оптимізації батареї**:
   - Інформаційна картка у «Загальних налаштуваннях» зі статусом оптимізації заряду.
   - Можливість в один дотик надати виняток з оптимізації батареї (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) для запобігання агресивному примусовому присиплянню застосунку на оболонках OEM (HyperOS/MIUI, OneUI тощо).
-- **Синхронізація з годинником**:
+- **Синхронізація з годинником (Wearable Data Layer)**:
   - Прапорець у налаштуваннях кожного профілю для вибору, які саме регіони передаються на годинник.
-  - Автоматична передача пакету синхронізації через Wearable Data Layer.
-  - Обробка повідомлень ручного запиту синхронізації з годинника.
+  - Автономна синхронізація профілів: збереження або видалення профілю та зміна мови негайно транслюються на годинник через `SettingsRepository` незалежно від роботи фонової служби моніторингу.
+  - Телефонний фоновий слухач `PhoneWearableListenerService`: обробляє ручні запити синхронізації `/request_sync` від годинника у фоні навіть за неактивної фонової служби.
+  - Прапорець `monitoringActive`: передає годиннику інформацію про активність служби; при вимкненому моніторингу статус на годиннику автоматично стає OFFLINE/UNKNOWN.
 
 ### 2. Додаток для смарт-годинника (`:wear`)
 - **Ускладнення для циферблатів (Wear OS Complications)**:
   - Реалізовано службу `AlertComplicationService` з підтримкою типів `SHORT_TEXT` та `LONG_TEXT`.
-  - **Налаштування екземпляра ускладнення**: активність `ComplicationConfigActivity` дозволяє обрати, який саме із синхронізованих профілів показуватиме кожне окреме ускладнення на циферблаті.
+  - **Налаштування екземпляра ускладнення**: активність `ComplicationConfigActivity` дозволяє обрати, який саме із синхронізованих профілів показуватиме кожне окреме ускладнення на циферблаті (налаштування зберігається стабільно при тимчасовому вимкненні синхронізації та очищується лише при видаленні ускладнення з циферблату через `onComplicationDeactivated`).
+  - **Темпоральна валідність (`TimeRange.before`)**: для ускладнень встановлюється діапазон валідності до `updatedAt + TTL` (15 хв). Після спливу TTL циферблат автоматично розглядає ускладнення як недійсне/OFFLINE, що запобігає «залипанню» застарілих статусів 🔴 або 🟢 при вимкненні смартфона чи обриві зв'язку.
   - Відображення поточного статусу та піктограм:
     - 🔴 `ТРВ` / `ALR` — тривога червоного рівня.
     - 🟡 `ЖОВ` / `YEL` — тривога жовтого рівня.
-    - 🟢 `ОК` — відбій.
-    - ⚪ `—` — відсутність даних або застарілий статус (stale > 15 хв).
+    - 🟢 `ОК` — підтверджений відбій (за наявності активного моніторингу).
+    - ⚪ `—` / `⚠️` — OFFLINE / відсутність зв'язку / моніторинг зупинено / застарілий статус (stale > 15 хв).
 - **Автономний екран деталей**:
   - Індикація статусу, типу тривоги, причини загрози (reasons), часу початку та часу останньої синхронізації.
-  - Кнопка «Синхр.» для миттєвого оновлення даних зі смартфона.
-- **Фоновий слухач**:
-  - Миттєве кешування отриманих від смартфона даних.
-  - Автоматичне надсилання запиту на перемальовування ускладнень на циферблаті.
+  - Чітке розмежування станів ВІДБІЙ (зелений) та НЕМАЄ ЗВ'ЯЗКУ / МОНІТОРИНГ ЗУПИНЕНО (нейтральний).
+  - Кнопка «Синхр.» для миттєвого запиту актуальних даних зі смартфона.
+- **Фоновий слухач (`WearDataListenerService`)**:
+  - Миттєве кешування отриманих від смартфона даних `WatchSyncData`.
+  - Автоматичне оновлення ускладнень на циферблаті.
 
 ---
 
@@ -83,23 +88,25 @@
 Смартфон (:mobile)                                  Samsung Galaxy Watch (:wear)
 ┌─────────────────────────────────────────┐         ┌─────────────────────────────────────┐
 │ MainActivity / DashboardCompose UI      │         │ Watch Face Complications            │
-│  - Multi-profile cards                  │         │  - AlertComplicationService         │
-│  - Global Settings & Sound Picker       │         │  - ComplicationConfigActivity       │
-│  - Region / District Selector           │         │                                     │
-│  - NEPTUN Attribution & Disclaimer      │         │ AlertDetailScreen                   │
-│                   │                     │         │  - Status / Reasons / Timestamps    │
-│                   ▼                     │         │  - Manual Sync Request              │
-│ AlertRepository (In-memory StateFlow)   │         │                   │                 │
-│                   ▲                     │         │                   ▼                 │
-│                   │                     │         │ WatchAlertRepository (Cache)        │
-│ AlertForegroundService (FGS specialUse) │         │                   ▲                 │
-│  ├── NeptunClient (WebSocket + REST)    │         │                   │                 │
-│  ├── AlertNotificationEngine (Shared)   │         │ WearDataListenerService             │
-│  ├── NotificationHelper (Sound/Vibro)   │         │  (Wearable Data Layer /alert_status)│
-│  ├── SettingsRepository (DataStore)     │◄───────►│                                     │
-│  │    - Profiles & Alert Baselines      │         │                                     │
-│  └── WearSyncManager (DataClient)       │         │                                     │
-└───────────────────┬─────────────────────┘         └─────────────────────────────────────┘
+│  - Multi-profile cards (3-state display)│         │  - AlertComplicationService         │
+│  - Global Settings & Sound Picker       │         │  - TimeRange.before(validity)       │
+│  - Region / District Selector           │         │  - ComplicationConfigActivity       │
+│  - NEPTUN Attribution & Disclaimer      │         │                                     │
+│                   │                     │         │ AlertDetailScreen                   │
+│                   ▼                     │         │  - Status / Reasons / Timestamps    │
+│ AlertRepository (In-memory StateFlow)   │         │  - Manual Sync Request (/req_sync)  │
+│                   ▲                     │         │                   │                 │
+│                   │                     │         │                   ▼                 │
+│ AlertForegroundService (FGS specialUse) │         │ WatchAlertRepository (Cache)        │
+│  ├── NeptunClient (WebSocket + REST)    │         │                   ▲                 │
+│  ├── AlertNotificationEngine (Shared)   │         │                   │                 │
+│  ├── NotificationHelper (Sound/Vibro)   │         │ WearDataListenerService             │
+│  └── WearSyncManager (monitoringActive) │         │  (Wearable Data Layer /alert_status)│
+│                   ▲                     │         │                   ▲                 │
+│                   │                     │         │                   │                 │
+│ SettingsRepository (DataStore Profiles) ├─────────┤ (Autonomous sync) │                 │
+│ PhoneWearableListenerService (/req_sync)│◄────────┴───────────────────┘                 │
+└───────────────────┬─────────────────────┘
                     │
                     ▼
             Neptun API Server
@@ -111,7 +118,7 @@
 ## Модулі проєкту
 
 - **`:shared`** — загальна Kotlin-бібліотека (JVM 17):
-  - Доменні моделі `AlertStatus`, `Profile`, `AlertLevel` (`@Serializable`), `AlertTargetKey`, `WatchSyncData`.
+  - Доменні моделі `AlertStatus` (`updatedAt = 0L` за замовчуванням), `Profile`, `AlertLevel` (`@Serializable`), `AlertTargetKey`, `WatchSyncData` (з прапорцем `monitoringActive`).
   - Моделі DTO для Neptun API (`NeptunAlertsResponse`, `NeptunOblastAlert`, `NeptunRaionAlert`).
   - Логіка обчислення переходів та координації базового рівня сповіщень (`AlertTransitionEvaluator`, `AlertNotificationEngine`).
   - База 25 областей та районів України (`DefaultRegions`).
@@ -121,13 +128,15 @@
 - **`:core-android`** — спільна Android-бібліотека (`ua.alerts.core`):
   - Спільна інфраструктура для Android-застосунків (реалізація `AndroidLogBackend` на базі `android.util.Log` та ініціалізатор `AndroidLogInitializer`).
 - **`:mobile`** — застосунок для смартфона (`ua.alerts.mobile`, namespace `ua.alerts.mobile`, app ID `ua.alerts.neptun`):
-  - Повний клієнт моніторингу тривог (`NeptunClient` на базі OkHttp 5.5.0 із захистом ECH через `AndroidDns` та Kotlin Coroutines), UI на Jetpack Compose, фонова служба FGS та синхронізація Wearable Data Layer.
-  - Постійне збереження профілів та базового рівня сповіщень переходів (`SettingsRepository` на базі Jetpack DataStore Preferences із захистом від блокувань файлів `retryIO`).
+  - Повний клієнт моніторингу тривог (`NeptunClient` на базі OkHttp 5.5.0 із захистом ECH через `AndroidDns` та Kotlin Coroutines), UI на Jetpack Compose із чітким 3-позиційним відображенням станів (CALM / ALERT / UNKNOWN), фонова служба FGS та синхронізація Wearable Data Layer (`WearSyncManager`).
+  - Фоновий слухач `PhoneWearableListenerService` у маніфесті для автономної відповіді на запити синхронізації з годинника.
+  - Постійне збереження профілів та базового рівня сповіщень переходів (`SettingsRepository` на базі Jetpack DataStore Preferences із захистом від блокувань файлів `retryIO` та автоматичною автономною відправкою оновлень на годинник).
   - Конфігурація мережевої безпеки `network_security_config.xml` з підтримкою `domainEncryption` для активного шифрування SNI в Android 17+.
   - Автоматичне відновлення моніторингу після перезавантаження (`BootReceiver`) та контроль оптимізації батареї (`BatteryOptimizationHelper`).
   - Ініціалізація `AndroidLogInitializer` при старті застосунку (`AlertApp`).
 - **`:wear`** — застосунок для Wear OS (`ua.alerts.wear`, namespace `ua.alerts.wear`, app ID `ua.alerts.neptun`):
-  - Автономний інтерфейс на Wear Compose, ускладнення для циферблатів та фоновий слухач синхронізації.
+  - Автономний інтерфейс на Wear Compose, ускладнення для циферблатів із темпоральним обмеженням валідності `TimeRange.before(updatedAt + TTL)` та фоновий слухач синхронізації `WearDataListenerService`.
+  - Очищення прив'язок ускладнень при їх деактивації на циферблаті (`onComplicationDeactivated`) та надійне збереження конфігурацій при тимчасовому вимкненні синхронізації профілю.
   - Ініціалізація `AndroidLogInitializer` при старті застосунку (`WearAlertApp`).
 
 ---

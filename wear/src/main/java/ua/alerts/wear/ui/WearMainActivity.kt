@@ -66,10 +66,7 @@ class WearMainActivity : ComponentActivity() {
 
                 if (selectedProfileId != null) {
                     val profile = syncData.profiles.find { it.id == selectedProfileId }
-                    val status = syncData.statuses[selectedProfileId] ?: AlertStatus(
-                        regionName = profile?.regionName ?: "",
-                        districtName = profile?.districtName
-                    )
+                    val status = syncData.statuses[selectedProfileId]
 
                     BackHandler {
                         if (initialProfileId != null) {
@@ -81,23 +78,25 @@ class WearMainActivity : ComponentActivity() {
 
                     AlertDetailScreen(
                         status = status,
+                        profile = profile,
+                        isMonitoringActive = syncData.monitoringActive,
                         onSyncClick = { repo.requestSyncFromPhone() }
                     )
                 } else {
                     if (syncData.profiles.size == 1) {
                         val singleProfile = syncData.profiles.first()
-                        val status = syncData.statuses[singleProfile.id] ?: AlertStatus(
-                            regionName = singleProfile.regionName,
-                            districtName = singleProfile.districtName
-                        )
+                        val status = syncData.statuses[singleProfile.id]
                         AlertDetailScreen(
                             status = status,
+                            profile = singleProfile,
+                            isMonitoringActive = syncData.monitoringActive,
                             onSyncClick = { repo.requestSyncFromPhone() }
                         )
                     } else {
                         WearProfileListScreen(
                             profiles = syncData.profiles,
                             statuses = syncData.statuses,
+                            isMonitoringActive = syncData.monitoringActive,
                             onProfileClick = { profile ->
                                 selectedProfileId = profile.id
                             },
@@ -114,6 +113,7 @@ class WearMainActivity : ComponentActivity() {
 fun WearProfileListScreen(
     profiles: List<Profile>,
     statuses: Map<String, AlertStatus>,
+    isMonitoringActive: Boolean = true,
     onProfileClick: (Profile) -> Unit,
     onSyncClick: () -> Unit
 ) {
@@ -163,16 +163,16 @@ fun WearProfileListScreen(
         } else {
             items(profiles, key = { it.id }) { profile ->
                 val status = statuses[profile.id]
-                val isOffline = status == null || status.isStale()
-                val isAlarm = status?.isAlarm == true
+                val isUnknown = !isMonitoringActive || status == null || status.isStale()
+                val isAlarm = !isUnknown && status.isAlarm
 
                 val iconRes = when {
-                    isOffline -> R.drawable.ic_offline_warning
+                    isUnknown -> R.drawable.ic_offline_warning
                     isAlarm -> R.drawable.ic_warning_siren
                     else -> R.drawable.ic_shield_check
                 }
                 val tintColor = when {
-                    isOffline -> WearWarningYellow
+                    isUnknown -> WearWarningYellow
                     status.isYellow -> WearWarningYellow
                     status.isRed -> WearDangerRed
                     else -> WearSafeGreen
@@ -190,7 +190,8 @@ fun WearProfileListScreen(
                     },
                     secondaryLabel = {
                         val labelText = when {
-                            isOffline -> stringResource(R.string.status_offline)
+                            !isMonitoringActive -> stringResource(R.string.status_offline)
+                            status == null || status.isStale() -> stringResource(R.string.status_unknown)
                             isAlarm -> stringResource(R.string.status_alarm)
                             else -> stringResource(R.string.status_clear)
                         }

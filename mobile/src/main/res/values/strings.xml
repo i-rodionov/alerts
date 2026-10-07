@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Тривоги Neptun</string>
     <string name="status_clear">Відбій тривоги</string>
+    <string name="status_unknown">Очікування даних…</string>
     <string name="status_alarm_yellow">ПОВІТРЯНА ТРИВОГА (ЖОВТИЙ РІВЕНЬ)</string>
     <string name="status_alarm_red">ПОВІТРЯНА ТРИВОГА (ЧЕРВОНИЙ РІВЕНЬ)</string>
     <string name="service_notification_channel">Служба моніторингу</string>

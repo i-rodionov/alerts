@@ -79,6 +79,14 @@ class AlertStatusTest {
         assertFalse(recentStatus.isStale())
     }
 
+
+    @Test
+    fun testDefaultAlertStatus_hasZeroUpdatedAt_andIsStale() {
+        val defaultStatus = AlertStatus()
+        assertEquals(0L, defaultStatus.updatedAt)
+        assertTrue("AlertStatus default must be stale to prevent synthesizing fresh CALM", defaultStatus.isStale())
+    }
+
     @Test
     fun testDefaultRegions() {
         assertTrue(DefaultRegions.ALL_REGIONS.isNotEmpty())

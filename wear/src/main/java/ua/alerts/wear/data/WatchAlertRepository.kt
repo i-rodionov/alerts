@@ -27,6 +27,7 @@ class WatchAlertRepository(private val context: Context) {
     val syncData: StateFlow<WatchSyncData> = _syncData.asStateFlow()
 
     private val _currentStatus = MutableStateFlow(loadInitialStatus())
+    val currentStatus: StateFlow<AlertStatus?> = _currentStatus.asStateFlow()
 
     private fun loadInitialSyncData(): WatchSyncData {
         val rawJson = prefs.getString("cached_sync_data_json", null)
@@ -50,7 +51,8 @@ class WatchAlertRepository(private val context: Context) {
                 return WatchSyncData(
                     profiles = listOf(fallbackProfile),
                     statuses = mapOf("legacy_watch_profile" to legacyStatus),
-                    updatedAt = legacyStatus.updatedAt
+                    updatedAt = legacyStatus.updatedAt,
+                    monitoringActive = !legacyStatus.isStale()
                 )
             } catch (_: Exception) {}
         }
@@ -58,17 +60,20 @@ class WatchAlertRepository(private val context: Context) {
         return WatchSyncData()
     }
 
-    private fun loadInitialStatus(): AlertStatus {
+    private fun loadInitialStatus(): AlertStatus? {
         val sync = loadInitialSyncData()
+        if (!sync.monitoringActive) return null
         val primaryProfile = sync.profiles.firstOrNull()
         if (primaryProfile != null) {
-            return sync.statuses[primaryProfile.id] ?: AlertStatus()
+            val status = sync.statuses[primaryProfile.id]
+            return if (status != null && !status.isStale()) status else null
         }
-        val rawJson = prefs.getString("cached_status_json", null) ?: return AlertStatus()
+        val rawJson = prefs.getString("cached_status_json", null) ?: return null
         return try {
-            json.decodeFromString<AlertStatus>(rawJson)
+            val status = json.decodeFromString<AlertStatus>(rawJson)
+            if (status.isStale()) null else status
         } catch (_: Exception) {
-            AlertStatus()
+            null
         }
     }
 
@@ -78,14 +83,22 @@ class WatchAlertRepository(private val context: Context) {
         prefs.edit { putString("cached_sync_data_json", rawJson) }
 
         val primaryProfile = newSyncData.profiles.firstOrNull()
-        val primaryStatus = if (primaryProfile != null) {
-            newSyncData.statuses[primaryProfile.id] ?: AlertStatus()
+        val primaryStatus = if (primaryProfile != null && newSyncData.monitoringActive) {
+            newSyncData.statuses[primaryProfile.id]
         } else {
-            AlertStatus()
+            null
         }
         _currentStatus.value = primaryStatus
-        val legacyRawJson = json.encodeToString(AlertStatus.serializer(), primaryStatus)
-        prefs.edit { putString("cached_status_json", legacyRawJson) }
+        if (primaryStatus != null) {
+            val legacyRawJson = json.encodeToString(AlertStatus.serializer(), primaryStatus)
+            prefs.edit { putString("cached_status_json", legacyRawJson) }
+        } else {
+            prefs.edit { remove("cached_status_json") }
+        }
+    }
+
+    fun removeComplicationProfileId(instanceId: Int) {
+        prefs.edit { remove("complication_${instanceId}_profile_id") }
     }
 
     fun updateStatus(newStatus: AlertStatus) {
@@ -99,7 +112,8 @@ class WatchAlertRepository(private val context: Context) {
             WatchSyncData(
                 profiles = listOf(syntheticProfile),
                 statuses = mapOf(syntheticProfile.id to newStatus),
-                updatedAt = newStatus.updatedAt
+                updatedAt = newStatus.updatedAt,
+                monitoringActive = !newStatus.isStale()
             )
         )
     }

@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">Neptun Alerts</string>
     <string name="status_clear">All Clear</string>
+    <string name="status_unknown">Waiting for data…</string>
     <string name="status_alarm_yellow">AIR RAID ALERT (YELLOW LEVEL)</string>
     <string name="status_alarm_red">AIR RAID ALERT (RED LEVEL)</string>
     <string name="service_notification_channel">Monitoring Service</string>

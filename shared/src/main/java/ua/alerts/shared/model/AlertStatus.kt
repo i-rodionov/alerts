@@ -12,7 +12,7 @@ data class AlertStatus(
     val districtKey: String? = null,
     val districtName: String? = null,
     val since: String? = null,
-    val updatedAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = 0L,
     val level: String? = null,
     val reasons: List<String> = emptyList()
 ) {

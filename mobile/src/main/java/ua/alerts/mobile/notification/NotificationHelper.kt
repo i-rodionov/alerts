@@ -57,7 +57,7 @@ class NotificationHelper(private val context: Context) {
             ConnectionStatus.STOPPED -> context.getString(R.string.status_monitoring_disabled)
         }
 
-        val hasStatus = status != null && status.regionName.isNotEmpty()
+        val hasStatus = status != null && status.regionName.isNotEmpty() && !status.isStale()
         val title = if (hasStatus) {
             when {
                 status.isYellow -> context.getString(R.string.status_alarm_yellow) + " 🟡"

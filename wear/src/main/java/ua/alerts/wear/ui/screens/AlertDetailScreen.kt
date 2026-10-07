@@ -32,6 +32,7 @@ import androidx.wear.compose.material.Icon
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import ua.alerts.shared.model.AlertStatus
+import ua.alerts.shared.model.Profile
 import ua.alerts.wear.BuildConfig
 import ua.alerts.wear.R
 import ua.alerts.wear.ui.theme.WearDangerRed
@@ -42,36 +43,41 @@ import java.util.Date
 
 @Composable
 fun AlertDetailScreen(
-    status: AlertStatus,
+    status: AlertStatus?,
+    profile: Profile? = null,
+    isMonitoringActive: Boolean = true,
     onSyncClick: () -> Unit
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val listState = rememberScalingLazyListState()
-    val isOffline = status.isStale()
-    val isAlarm = status.isAlarm
+    val isUnknown = !isMonitoringActive || status == null || status.isStale()
+    val isAlarm = !isUnknown && status.isAlarm
+    val isYellow = !isUnknown && status.isYellow
+    val isRed = !isUnknown && status.isRed
 
     val statusColor = when {
-        isOffline -> WearWarningYellow
-        status.isYellow -> WearWarningYellow
-        status.isRed -> WearDangerRed
+        isUnknown -> WearWarningYellow
+        isYellow -> WearWarningYellow
+        isRed -> WearDangerRed
         else -> WearSafeGreen
     }
 
     val statusTitle = when {
-        isOffline -> stringResource(R.string.status_offline)
-        status.isYellow -> stringResource(R.string.status_alarm_yellow)
-        status.isRed -> stringResource(R.string.status_alarm_red)
+        !isMonitoringActive -> stringResource(R.string.status_offline)
+        status == null || status.isStale() -> stringResource(R.string.status_unknown)
+        isYellow -> stringResource(R.string.status_alarm_yellow)
+        isRed -> stringResource(R.string.status_alarm_red)
         else -> stringResource(R.string.status_clear)
     }
 
     val iconRes = when {
-        isOffline -> R.drawable.ic_offline_warning
+        isUnknown -> R.drawable.ic_offline_warning
         isAlarm -> R.drawable.ic_warning_siren
         else -> R.drawable.ic_shield_check
     }
 
     val timeFormat = SimpleDateFormat("HH:mm", locale)
-    val lastSyncText = if (status.updatedAt > 0) {
+    val lastSyncText = if (status != null && status.updatedAt > 0) {
         timeFormat.format(Date(status.updatedAt))
     } else {
         "—"
@@ -113,8 +119,11 @@ fun AlertDetailScreen(
         }
 
         item {
+            val displayName = profile?.getLocalizedDisplayName(locale.language)?.ifEmpty { null }
+                ?: status?.getLocalizedDisplayName(locale.language)?.ifEmpty { null }
+                ?: stringResource(R.string.app_name)
             Text(
-                text = status.getLocalizedDisplayName(locale.language).ifEmpty { stringResource(R.string.app_name) },
+                text = displayName,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,

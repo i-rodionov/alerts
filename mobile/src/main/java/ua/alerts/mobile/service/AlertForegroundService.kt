@@ -145,7 +145,6 @@ class AlertForegroundService : Service() {
     override fun onDestroy() {
         stopMonitoring()
         serviceScope.cancel()
-        AlertRepository.setServiceRunning(false)
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(NotificationHelper.NOTIFICATION_ID_SERVICE)
         super.onDestroy()
@@ -205,22 +204,21 @@ class AlertForegroundService : Service() {
 
                 // Synchronized watch profiles and statuses
                 val synchronizedProfiles = profiles.filter { it.activeOnWatch }
-                val synchronizedStatuses = synchronizedProfiles.associate { it.id to (statusMap[it.id] ?: AlertStatus()) }
+                val synchronizedStatuses = synchronizedProfiles.mapNotNull { p ->
+                    statusMap[p.id]?.let { p.id to it }
+                }.toMap()
                 val watchSyncData = WatchSyncData(
                     profiles = synchronizedProfiles,
                     statuses = synchronizedStatuses,
                     updatedAt = System.currentTimeMillis(),
-                    language = appLanguage
+                    language = appLanguage,
+                    monitoringActive = true
                 )
                 AlertRepository.setWatchSyncData(watchSyncData)
 
                 // Active watch profile status (for ongoing mobile status notification)
                 val watchProfile = synchronizedProfiles.firstOrNull() ?: profiles.firstOrNull()
-                val watchStatus = if (watchProfile != null) {
-                    statusMap[watchProfile.id] ?: AlertStatus()
-                } else {
-                    AlertStatus()
-                }
+                val watchStatus = watchProfile?.let { statusMap[it.id] }
                 AlertRepository.setAlertStatus(watchStatus)
 
                 // Update ongoing service notification
@@ -269,6 +267,13 @@ class AlertForegroundService : Service() {
         watchCountJob = null
         neptunClient.stop()
         wearSyncManager.stop()
+
+        AlertRepository.clearRuntimeAlerts()
+        AlertRepository.setServiceRunning(false)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            WearSyncManager.syncCurrentState(applicationContext)
+        }
     }
 
     private fun computeAlertStatus(

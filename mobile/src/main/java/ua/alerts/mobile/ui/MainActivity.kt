@@ -162,11 +162,13 @@ class MainActivity : ComponentActivity() {
                                 val profiles by viewModel.profiles.collectAsState()
                                 val profileAlerts by viewModel.profileAlerts.collectAsState()
                                 val connectionStatus by viewModel.connectionStatus.collectAsState()
+                                val isServiceRunning by viewModel.isServiceRunning.collectAsState()
 
                                 DashboardScreen(
                                     profiles = profiles,
                                     profileAlerts = profileAlerts,
                                     connectionStatus = connectionStatus,
+                                    isServiceRunning = isServiceRunning,
                                     onRefresh = { viewModel.refreshData() },
                                     onOpenSettings = { viewModel.navigateTo(Screen.GlobalSettings) },
                                     onProfileClick = { profile ->

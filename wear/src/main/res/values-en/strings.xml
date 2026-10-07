@@ -5,6 +5,7 @@
     <string name="complication_preview_text">ALERT</string>
     <string name="complication_preview_title">Kyiv</string>
     <string name="status_clear">Clear</string>
+    <string name="status_unknown">Waiting for data…</string>
     <string name="status_alarm">ALERT</string>
     <string name="status_alarm_yellow">YELLOW LEVEL</string>
     <string name="status_alarm_red">RED LEVEL</string>

@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class WatchSyncData(
     val profiles: List<Profile> = emptyList(),
     val statuses: Map<String, AlertStatus> = emptyMap(),
-    val updatedAt: Long = System.currentTimeMillis(),
-    val language: String = "system"
+    val updatedAt: Long = 0L,
+    val language: String = "system",
+    val monitoringActive: Boolean = false
 )

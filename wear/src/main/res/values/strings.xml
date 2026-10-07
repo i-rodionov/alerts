@@ -5,6 +5,7 @@
     <string name="complication_preview_text">ТРВ</string>
     <string name="complication_preview_title">Київ</string>
     <string name="status_clear">Чисто</string>
+    <string name="status_unknown">Очікування даних…</string>
     <string name="status_alarm">ТРИВОГА</string>
     <string name="status_alarm_yellow">ЖОВТИЙ РІВЕНЬ</string>
     <string name="status_alarm_red">ЧЕРВОНИЙ РІВЕНЬ</string>

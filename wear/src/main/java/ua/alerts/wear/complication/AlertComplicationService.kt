@@ -12,6 +12,8 @@ import androidx.wear.watchface.complications.data.LongTextComplicationData
 import androidx.wear.watchface.complications.data.MonochromaticImage
 import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.ShortTextComplicationData
+import androidx.wear.watchface.complications.data.TimeRange
+import java.time.Instant
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import ua.alerts.shared.constants.WearConstants
@@ -64,6 +66,13 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
         }
     }
 
+    override fun onComplicationDeactivated(complicationInstanceId: Int) {
+        super.onComplicationDeactivated(complicationInstanceId)
+        try {
+            WearAlertApp.instance.alertRepository.removeComplicationProfileId(complicationInstanceId)
+        } catch (_: Exception) {}
+    }
+
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData {
         val repo = try {
             WearAlertApp.instance.alertRepository
@@ -90,8 +99,10 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Offline if unconfigured, or profile removed/unsynchronized, or status missing/stale
-        val isOffline = configuredProfileId == null || profile == null || status == null || status.isStale()
+        val syncData = repo?.syncData?.value
+        val isMonitoringActive = syncData?.monitoringActive == true
+        // Offline if unconfigured, or profile removed/unsynchronized, or status missing/stale, or monitoring stopped
+        val isOffline = configuredProfileId == null || profile == null || status == null || status.isStale() || !isMonitoringActive
         val isAlarm = !isOffline && status.isAlarm
         val regionName = profile?.getLocalizedDisplayName(syncLanguage)?.ifEmpty { localizedContext.getString(R.string.app_name) }
             ?: status?.getLocalizedDisplayName(syncLanguage)?.ifEmpty { localizedContext.getString(R.string.app_name) }
@@ -121,11 +132,17 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
                 val text = PlainComplicationText.Builder(textStr).build()
                 val title = PlainComplicationText.Builder(titleStr).build()
 
-                ShortTextComplicationData.Builder(text, text)
+                val builder = ShortTextComplicationData.Builder(text, text)
                     .setTitle(title)
                     .setMonochromaticImage(icon)
                     .setTapAction(pendingIntent)
-                    .build()
+
+                if (!isOffline && status.updatedAt > 0) {
+                    val expiryInstant = Instant.ofEpochMilli(status.updatedAt + WearConstants.DEFAULT_TIMEOUT_MS)
+                    builder.setValidTimeRange(TimeRange.before(expiryInstant))
+                }
+
+                builder.build()
             }
             ComplicationType.LONG_TEXT -> {
                 val headerStr = when {
@@ -137,11 +154,17 @@ class AlertComplicationService : SuspendingComplicationDataSourceService() {
                 val text = PlainComplicationText.Builder(headerStr).build()
                 val title = PlainComplicationText.Builder(regionName).build()
 
-                LongTextComplicationData.Builder(text, text)
+                val builder = LongTextComplicationData.Builder(text, text)
                     .setTitle(title)
                     .setMonochromaticImage(icon)
                     .setTapAction(pendingIntent)
-                    .build()
+
+                if (!isOffline && status.updatedAt > 0) {
+                    val expiryInstant = Instant.ofEpochMilli(status.updatedAt + WearConstants.DEFAULT_TIMEOUT_MS)
+                    builder.setValidTimeRange(TimeRange.before(expiryInstant))
+                }
+
+                builder.build()
             }
             else -> {
                 // Fallback for empty/unsupported types
